@@ -1,0 +1,30 @@
+Dự án app chat online (MyChat)
+Các tính năng và công nghệ đi kèm (dự kiến):
+	
+	+ Giao diện đồ họa: Terminal + PyQt6
+	
+	+ Database: SQlite3(Data), NoSQL - Dictionary Python(cache)
+
+	+ Kết nối server-client: Websocket
+
+	+ Gửi file hình ảnh và âm thanh: Websocket + FastAPI
+
+	+ Nhắn tin giữa các người dùng: thông qua server với Websocket
+
+	+ Gọi điện: Pyaudio + UDP protocol
+
+	+ Group Chat: cập nhật sau
+
+	+ Tìm kiếm người dùng khác và danh sách bạn bè: cập nhật sau
+
+	+ Đăng kí và đăng nhập: sử dụng database để lưu (có hashing mật khẩu)
+
+Lịch trình phát triển (dự kiến có thể nhanh hoặc chậm hơn so với lịch trình):
+	+ 25/8: Chốt các tính năng cơ bản và công nghệ sử dụng 
+	+ 26/8-27/8: Thiết kế database cho hệ thống
+	+ 28/8-29/8: Xây dựng kết nối server-client và các tính năng đăng nhập cho người dùng + Thiết kế giao diện
+	+ 30/8-1/9: Phát triền tính năng chat
+	+ 2/9-4/9: Phát triển tính năng group chat
+	+ 5/9-6/9: Phát tiển tính năng gửi file
+	+ 7/9-update later: Phát triển tính năng gọi điện và kiểm tra lỗi + hoàn thiện dự án
+	

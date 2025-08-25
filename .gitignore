@@ -1,0 +1,14 @@
+# Bỏ file biên dịch Python
+__pycache__/
+*.pyc
+
+# Bỏ log file
+*.log
+
+# Bỏ môi trường ảo
+venv/
+.env/
+
+# Bỏ file tạm hệ điều hành
+.DS_Store
+Thumbs.db
