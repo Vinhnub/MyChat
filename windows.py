@@ -25,7 +25,6 @@ class StartWindow(QWidget):
         label.setStyleSheet("""
     QLabel {
         border: 1px solid black;
-        border-radius: 15px;
         padding: 8px;
     }
 """)
@@ -33,21 +32,18 @@ class StartWindow(QWidget):
         exitBtn.setStyleSheet("""
     QPushButton {
         border: 1px solid black;
-        border-radius: 10px;
         padding: 5px;
     }
 """)
         signInBtn.setStyleSheet("""
     QPushButton {
         border: 1px solid black;
-        border-radius: 10px;
         padding: 5px;
     }
 """)
         signUpBtn.setStyleSheet("""
     QPushButton {
         border: 1px solid black;
-        border-radius: 10px;
         padding: 5px;
     }
 """)
@@ -87,7 +83,6 @@ class SignInWindow(QWidget):
         label.setStyleSheet("""
     QLabel {
         border: 1px solid black;
-        border-radius: 15px;
         padding: 8px;
     }
 """)
@@ -110,14 +105,12 @@ class SignInWindow(QWidget):
         enterBtn.setStyleSheet("""
     QPushButton {
         border: 1px solid gray;
-        border-radius: 10px;
         padding: 5px;
     }
 """)
         cancelBtn.setStyleSheet("""
     QPushButton {
         border: 1px solid gray;
-        border-radius: 10px;
         padding: 5px;
     }
 """)
@@ -126,14 +119,10 @@ class SignInWindow(QWidget):
         btnLayout.addWidget(cancelBtn)
         btnLayout.addWidget(enterBtn)
 
-        self.statusBar = QStatusBar()
-        self.statusBar.setStyleSheet("color: red;")  
-
         layout = QVBoxLayout()
         layout.addWidget(label)
         layout.addLayout(entryLayout)
         layout.addLayout(btnLayout)
-        layout.addWidget(self.statusBar)
         
         self.setLayout(layout)
 
@@ -144,11 +133,73 @@ class SignInWindow(QWidget):
         pass
 
     def showError(self):
-        self.statusBar.showMessage("Username or password is wrong!")
+        pass
 
 class SignUpWindow(QWidget):
     def __init__(self, app, main):
         super().__init__()
         self.app = app
         self.main = main
+        self.setWindowTitle("Sign up")
+
+        label = QLabel("Sign up")
+        label.setFont(QFont('Arial', 16))
+        label.setAlignment(Qt.AlignCenter)
+        label.setStyleSheet("""
+    QLabel {
+        border: 1px solid black;
+        padding: 8px;
+    }
+""")
         
+        entryLayout = QFormLayout()
+        fullnameEntry = QLineEdit()
+        usernameEntry = QLineEdit()
+        passwordEntry = QLineEdit()
+        fullnameLabel = QLabel("Fullname:")
+        usernameLabel = QLabel("Username:")
+        passwordLabel = QLabel("Password:")
+        fullnameLabel.setFont(QFont('Arial', 10))
+        usernameLabel.setFont(QFont('Arial', 10))
+        passwordLabel.setFont(QFont('Arial', 10))
+        entryLayout.addRow(fullnameLabel, fullnameEntry)
+        entryLayout.addRow(usernameLabel, usernameEntry)
+        entryLayout.addRow(passwordLabel, passwordEntry)
+        
+        btnLayout = QHBoxLayout()
+        enterBtn = QPushButton("Enter")
+        cancelBtn = QPushButton("Cancel")
+        enterBtn.setFont(QFont('Arial', 10))
+        cancelBtn.setFont(QFont('Arial', 10))
+        enterBtn.setStyleSheet("""
+    QPushButton {
+        border: 1px solid gray;
+        padding: 5px;
+    }
+""")
+        cancelBtn.setStyleSheet("""
+    QPushButton {
+        border: 1px solid gray;
+        padding: 5px;
+    }
+""")
+        enterBtn.clicked.connect(self.showError)
+        cancelBtn.clicked.connect(self.cancelClicked)
+        btnLayout.addWidget(cancelBtn)
+        btnLayout.addWidget(enterBtn)
+
+        layout = QVBoxLayout()
+        layout.addWidget(label)
+        layout.addLayout(entryLayout)
+        layout.addLayout(btnLayout)
+        
+        self.setLayout(layout)
+
+    def cancelClicked(self):
+        self.main.secondWindow = None
+
+    def enterClicked(self):
+        pass
+
+    def showError(self):
+        pass
