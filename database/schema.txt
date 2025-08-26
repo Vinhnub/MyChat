@@ -19,7 +19,7 @@ CREATE TABLE Message (
     mesContent TEXT,
     date TEXT,
     userName TEXT,
-    groupID INTEGER,
+    groupName INTEGER,
     FOREIGN KEY (userName) REFERENCES User(userName),
     FOREIGN KEY (groupName) REFERENCES GroupChat(groupName)
 );
