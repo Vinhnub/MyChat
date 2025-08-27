@@ -1,6 +1,6 @@
-from GUI.Widgets import *
 from PySide6.QtCore import Qt
-from client.clientSocket import *
+from clientSocket import *
+from Widgets import *
 from PySide6.QtWidgets import QStackedWidget ,QApplication, QWidget, QMainWindow, QPushButton, QSlider
 import sys
 
@@ -12,7 +12,7 @@ class MainWindow(QWidget):
         self.stack = QStackedWidget()
         
         self.w1 = WidgetLogin(app, client, self.stack)
-        self.w2 = WidgetStartChat(app, client, self.stack)
+        self.w2 = ChatWindow(app, client, self.stack)
         self.stack.addWidget(self.w1)
         self.stack.addWidget(self.w2)
         
