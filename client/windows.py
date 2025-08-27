@@ -57,14 +57,14 @@ class SignInWindow(QWidget):
         label.setAlignment(Qt.AlignCenter)
 
         entryLayout = QFormLayout()
-        usernameEntry = QLineEdit()
-        passwordEntry = QLineEdit()
+        self.usernameEntry = QLineEdit()
+        self.passwordEntry = QLineEdit()
         usernameLabel = QLabel("Username:")
         passwordLabel = QLabel("Password:")
         usernameLabel.setFont(QFont('Arial', 10))
         passwordLabel.setFont(QFont('Arial', 10))
-        entryLayout.addRow(usernameLabel, usernameEntry)
-        entryLayout.addRow(passwordLabel, passwordEntry)
+        entryLayout.addRow(usernameLabel, self.usernameEntry)
+        entryLayout.addRow(passwordLabel, self.passwordEntry)
         
         btnLayout = QHBoxLayout()
         enterBtn = QPushButton("Enter")
@@ -88,7 +88,9 @@ class SignInWindow(QWidget):
         self.close()
 
     def enterClicked(self):
-        pass
+        if self.usernameEntry.text() == "" or self.passwordEntry.text() == "":
+            return
+        
 
     def showError(self):
         pass

@@ -24,16 +24,11 @@ class Main():
 
     def handleCallGui(self, func):
         func()
-
-    def show(self):
-        self.mainWindow.show()
-
-    def addDataToQueue(self, data):
-        asyncio.run_coroutine_threadsafe(self.dataSendQueue.put(data), self.loop)
-
-    def signIn(self):
-        pass
-
+        
+    def handleData(self, data):
+        if data["type"] == "signUp":
+            self.handleSignUpResult(data["status"])
+            
     def handleSignUpResult(self, success):
         if self.secondWindow is not None:
             if success:
@@ -41,9 +36,20 @@ class Main():
             else:
                 self.secondWindow.showError()
 
+    def signIn(self, username, password):
+        data = {"type" : "signIp", "username" : username, "password" : password}
+        self.addDataToQueue(data)
+
     def signUp(self, fullname, username, password):
         data = {"type" : "signUp", "fullname" : fullname, "username" : username, "password" : password}
         self.addDataToQueue(data)
+
+    def addDataToQueue(self, data):
+        asyncio.run_coroutine_threadsafe(self.dataSendQueue.put(data), self.loop)
+
+    def show(self):
+        self.mainWindow.show()
+
 
     async def send(self, websocket):
         while True:
@@ -58,8 +64,7 @@ class Main():
             async for msg in websocket:
                 data = json.loads(msg)
                 print(data)
-                if data["type"] == "signUp":
-                    self.signals.callGui.emit(lambda: self.handleSignUpResult(data["status"]))
+                self.signals.callGui.emit(lambda: self.handleData(data))
 
         except websockets.ConnectionClosed:
             print("Lost connection.")

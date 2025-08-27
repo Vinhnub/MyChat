@@ -50,6 +50,9 @@ async def handleClient(websocket):
                     responseData = {"type" : "signUp", "status" : True}
                     await websocket.send(json.dumps(responseData))
 
+            if data["type"] == "singIn":
+                pass
+
     except websockets.exceptions.ConnectionClosed:
         print(f"{username} disconnected.")    
     
