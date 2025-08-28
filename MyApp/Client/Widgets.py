@@ -308,8 +308,10 @@ class ChatWindow(QWidget):
             {"type": "date", "date": "27/08/2025"},
             {"type": "message", "sender": "other", "text": "Hôm nay mới nè", "time": "27/08/2025 09:10"},
         ])
+
         self.client = client
         self.client.newMessage.connect(self.recv)
+
         self.view = QListView()
         self.view.setModel(self.model)
         self.view.setItemDelegate(ChatDelegate())
@@ -322,17 +324,25 @@ class ChatWindow(QWidget):
         self.setLayout(layout)
         self.input.editingFinished.connect(self.EditFinished)
         
-#sua lai
-    def recv(self, msg):
+    def sendMess(self, msg):
         text = msg
         if text:
             now = datetime.now().strftime("%d/%m/%Y %H:%M")
             self.model.addMessage({"type": "message", "sender": "me", "text": text, "time": now})
             self.input.clear()
             self.view.scrollToBottom()
+
+    def recv(self, msg):
+        text = msg
+        if text:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M")
+            self.model.addMessage({"type": "message", "sender": "friend", "text": text, "time": now})
+            self.input.clear()
+            self.view.scrollToBottom()  
 # them
     def EditFinished(self):
         self.msg = self.input.text()
+        self.sendMess(self.msg)
         self.input.clear()
         self.client.sendChat(self.msg)
 

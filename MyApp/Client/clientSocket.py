@@ -1,3 +1,4 @@
+import json
 import socket
 from PySide6.QtCore import Signal, QObject
 import threading
@@ -29,12 +30,8 @@ class ClientChat(QObject):
 
     def sendList(self, list):
         self.client.sendall((self.msg + "\n").encode(FORMAT))
-        self.client.recv(1024)  # chờ server
-
-        for item in list:
-            self.client.sendall((item + "\n").encode(FORMAT)) 
-            self.client.recv(1024)
-        self.client.sendall("end\n".encode(FORMAT))
+        data = json.dumps(list) + "\n"
+        self.client.sendall(data.encode(FORMAT))
 
     def userLoginSignUp(self, msg):
         self.msg = msg

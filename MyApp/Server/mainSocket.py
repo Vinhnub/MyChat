@@ -1,7 +1,7 @@
 import sqlite3
 import socket
 import threading
-import pyodbc
+import json
 HOST = "26.198.149.7" #loopback
 SERVER_PORT = 61000
 FORMAT = "UTF8"
@@ -10,23 +10,28 @@ SIGNUP = "signup"
 clients = {} # luu cac client duoi dang conn va name tai khoang
 db_path = r"C:\Users\Lenovo\Desktop\MyChat\mydatabase.db"
 
-def broadcast(msg, sender_name):
+def broadcast(msg, sender_name, sender_conn):
     fullMsg = f"{sender_name}: {msg}"
     for c in list(clients.keys()):
-        try:
-            c.sendall(fullMsg.encode(FORMAT))
-        except:
-            c.close()
-            del clients[c]
+        if c != sender_conn:
+            try:
+                c.sendall(fullMsg.encode(FORMAT))
+            except:
+                c.close()
+                del clients[c]
 
 def recvList(conn):
-    list = []
-    item = conn.recv(1024).decode(FORMAT).strip()
-    while item != "end":
-        list.append(item)
-        conn.sendall("ack\n".encode(FORMAT))  # gửi ack
-        item = conn.recv(1024).decode(FORMAT).strip()
-    return list
+    """
+    Nhận 1 message JSON từ client, parse thành list.
+    Cách này đảm bảo dữ liệu không bị trộn khi nhiều client cùng gửi.
+    """
+    try:
+        data = conn.recv(1024).decode(FORMAT).strip()  # nhận 1 lần
+        items = json.loads(data)  # parse JSON thành list
+        return items
+    except Exception as e:
+        print("Error in recvList:", e)
+        return []
 
 def serverLogin(conn):
     connDB = sqlite3.connect(db_path)
@@ -36,18 +41,18 @@ def serverLogin(conn):
     cursor.execute("SELECT password FROM useraccount WHERE username = ?", (client_account[0],))
     result = cursor.fetchone()
     data_password =  result[0]
-
-    msg = "SeverReply"
-    if (client_account[1] == data_password):
-        msg = "login successfully"
-        clients[conn] = client_account[0] # luu client duoi dang conn va name tai khoang
-        print(msg)
-        print(clients[conn])
+    if result:
+        data_password = result[0]
+        if client_account[1] == data_password:
+            msg = "login successfully"
+            clients[conn] = client_account[0]
+        else:
+            msg = "Invalid password"
     else:
-        msg = "Invalid password"
-        print(msg)  
-    connDB.close()
+        msg = "Username not found"
     conn.sendall(msg.encode(FORMAT))
+    connDB.commit() 
+    connDB.close()
 
 def serverSignUp(conn):
     connDB = sqlite3.connect(db_path)
@@ -67,6 +72,7 @@ def serverSignUp(conn):
         msg = "login successfully"
     print(msg)
     conn.sendall(msg.encode(FORMAT))
+    connDB.commit()
     connDB.close()
 #--------------- vong lap chinh cua moi thread client ------------
 def handleClient(conn: socket, addr):
@@ -79,13 +85,11 @@ def handleClient(conn: socket, addr):
             break
         print(f"client {clients[conn]}, {addr}, say: {msg}")
         if msg == LOGIN:
-            conn.sendall("ack\n".encode(FORMAT))  # gửi ack cho client
             serverLogin(conn)
         if msg == SIGNUP:
-            conn.sendall("ack\n".encode(FORMAT))  # gửi ack cho client
             serverSignUp(conn)
         else:
-            broadcast(msg, clients[conn])
+            broadcast(msg, clients[conn], conn)
 
     print("client", addr, "finished")
     print(conn.getsockname(), "close")
@@ -105,7 +109,7 @@ print("Waiting for client")
 
 #------------ vong lap chinh tao ra thread cho moi client moi ket noi-----------
 nClient = 0
-while (nClient < 3):
+while (nClient < 5):
     try: 
         conn, addr = s.accept()
         clients[conn] = None  # luu client duoi dang conn va name tai khoang
@@ -119,4 +123,3 @@ while (nClient < 3):
 print("END")
 input()
 s.close()
-conx.close()
