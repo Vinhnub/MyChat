@@ -4,7 +4,6 @@ from Widgets import *
 from PySide6.QtWidgets import QStackedWidget ,QApplication, QWidget, QMainWindow, QPushButton, QSlider
 import sys
 
-
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -25,4 +24,3 @@ if __name__ == "__main__":
    window = MainWindow()
    window.show()
    app.exec()
-

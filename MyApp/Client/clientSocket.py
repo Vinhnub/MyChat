@@ -22,7 +22,7 @@ class ClientChat(QObject):
             self.connected = True
         except:
             print("Cannot connect to server")
-#------dung de loging-------
+#------ dung de loging - signup -------
     def setNamePsw(self, username, psw):
         self.username = username
         self.psw = psw
@@ -36,7 +36,8 @@ class ClientChat(QObject):
             self.client.recv(1024)
         self.client.sendall("end\n".encode(FORMAT))
 
-    def userLogin(self):
+    def userLoginSignUp(self, msg):
+        self.msg = msg
         self.sendList([self.username, self.psw])
         self.validcheck = self.client.recv(1024).decode(FORMAT)
         return self.validcheck

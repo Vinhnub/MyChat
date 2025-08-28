@@ -1,12 +1,70 @@
-from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QComboBox, QTabWidget, QAbstractItemView, QListWidget, QRadioButton, QButtonGroup, QCheckBox,QGroupBox,QGridLayout, QSizePolicy, QTextEdit, QLineEdit, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox, QLabel
+from PySide6.QtWidgets import QListWidget, QSplitter, QComboBox, QTabWidget, QAbstractItemView, QListWidget, QRadioButton, QButtonGroup, QCheckBox,QGroupBox,QGridLayout, QSizePolicy, QTextEdit, QLineEdit, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox, QLabel
 from clientSocket import *
-from PySide6.QtCore import Signal, QObject
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QListView, QLineEdit, QPushButton, QStyledItemDelegate
-from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QRect, QSize, QPoint
-from PySide6.QtGui import QPainter, QColor, QFont
+from PySide6.QtWidgets import QDialog, QApplication, QWidget, QVBoxLayout, QListView, QLineEdit, QPushButton, QStyledItemDelegate
+from PySide6.QtCore import  Qt, QAbstractListModel, QModelIndex, QRect, QSize, QPoint, Signal, QObject
+from PySide6.QtGui import  QPainter, QColor, QFont
 from datetime import datetime
+from PySide6.QtCore import Signal, QObject
 
+class WidgetSignUp(QDialog):
+    def __init__(self, client):
+        super().__init__()
+        self.setWindowTitle("Sign Up")
+        self.name = None
+        self.passW = None
+        self.confirm = None
+        self.client = client
+
+        username = QLabel("Username: ")
+        self.lineInputUsername = QLineEdit()
+        
+        passW = QLabel("PassWorld: ")
+        self.lineInputPassW = QLineEdit()
+        self.lineInputPassW.setEchoMode(QLineEdit.Password)
+
+        passWAgain = QLabel("Confirm: ")
+        self.lineInputPassWAgain = QLineEdit()
+        self.lineInputPassWAgain.setEchoMode(QLineEdit.Password)
+        self.lineInputPassWAgain.returnPressed.connect(self.checkSignUp)
+
+        layOutUserH = QHBoxLayout()
+        layOutUserH.addWidget(username)
+        layOutUserH.addWidget(self.lineInputUsername)
+
+        layOutPassH = QHBoxLayout()
+        layOutPassH.addWidget(passW)
+        layOutPassH.addWidget(self.lineInputPassW)
+
+        layOutPassAH = QHBoxLayout()
+        layOutPassAH.addWidget(passWAgain)
+        layOutPassAH.addWidget(self.lineInputPassWAgain)
+
+        SignUpBtn = QPushButton("Sign Up")
+        SignUpBtn.clicked.connect(self.checkSignUp)
+
+        layOutV = QVBoxLayout()
+        layOutV.addLayout(layOutUserH)
+        layOutV.addLayout(layOutPassH)
+        layOutV.addLayout(layOutPassAH)
+        layOutV.addWidget(SignUpBtn)
+        
+        self.setLayout(layOutV)
+        
+    def checkSignUp(self):
+        self.name = self.lineInputUsername.text()
+        self.passW = self.lineInputPassW.text()
+        self.confirm = self.lineInputPassWAgain.text()
+        if not self.name or not self.passW or not self.confirm:
+            QMessageBox.information(self, "Sign Up result", "Invalid SignUp!")
+            return
+        elif self.passW != self.confirm:
+            QMessageBox.information(self, "Sign Up result", "confirm passW is not match")
+            return
+        else:
+            self.client.setNamePsw(self.name, self.passW)
+            result = self.client.userLoginSignUp("signup")
+            QMessageBox.information(self, "Login result", result)
+            self.accept()
 class WidgetLogin(QWidget):
     def __init__(self, app, client, stack=None):
         super().__init__()
@@ -25,8 +83,12 @@ class WidgetLogin(QWidget):
         LoginButton = QPushButton("Login")
         LoginButton.clicked.connect(self.CheckValid)
 
-        quitButton = QPushButton("Quit")
-        quitButton.clicked.connect(self.quitLogin)
+        quitButton = QPushButton("Sign up")
+        quitButton.clicked.connect(self.signUp)
+        
+        self.ContentSplit = QListWidget()
+        self.ContentSplit.addItems(["Huy", "Nam", "Linh", "An"])
+        self.ContentSplit.hide()
 
         layOutUserH = QHBoxLayout()
         layOutUserH.addWidget(username)
@@ -45,21 +107,32 @@ class WidgetLogin(QWidget):
         layOutV.addLayout(layOutPassH)
         layOutV.addLayout(layOutLoginH)
         
-        self.setLayout(layOutV)
+        leftWidget = QWidget()
+        leftWidget.setLayout(layOutV)
 
+        layOutSplit = QSplitter(Qt.Horizontal)
+        layOutSplit.addWidget(leftWidget)
+        layOutSplit.addWidget(self.ContentSplit)
+        
+        mainLayout = QVBoxLayout()
+        mainLayout.addWidget(layOutSplit)
 
+        self.setLayout(mainLayout)
+
+    
     def CheckValid(self):
         username = self.lineInputUsername.text()
         password = self.lineInputPassW.text()
         self.client.setNamePsw(username, password)
-        result = self.client.userLogin()
+        result = self.client.userLoginSignUp("login")
         QMessageBox.information(self, "Login result", result)
         if self.stack and result == "login successfully":
             self.client.startListenThread() # bat dau thread listen lien tuc
             self.stack.setCurrentIndex(1)
         
-    def quitLogin(self):
-        self.app.quit()
+    def signUp(self):
+        dialog = WidgetSignUp(self.client)
+        dialog.exec()
 
 #class WidgetStartChat(QWidget):
 #    def __init__(self, app, client, stack=None):
