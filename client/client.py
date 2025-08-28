@@ -1,5 +1,3 @@
-import asyncio
-import websockets
 from PySide6.QtWidgets import QApplication
 import sys
 from main import Main

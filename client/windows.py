@@ -1,9 +1,11 @@
 from PySide6.QtWidgets import (QWidget,  QLabel, QHBoxLayout,
                                 QVBoxLayout, QPushButton, QLineEdit,
                                 QFormLayout, QGridLayout, QStatusBar,
-                                QMessageBox)
+                                QMessageBox, QListWidget)
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
+from chat_model import *
+from chat_list import *
 
 class StartWindow(QWidget):
     def __init__(self, app, main):
@@ -90,7 +92,7 @@ class SignInWindow(QWidget):
     def enterClicked(self):
         if self.usernameEntry.text() == "" or self.passwordEntry.text() == "":
             return
-        
+        self.main.signIn(self.usernameEntry.text(), self.passwordEntry.text())
 
     def showError(self):
         pass
@@ -158,4 +160,40 @@ class SignUpWindow(QWidget):
 
 
 class MainWindow(QWidget):
-    pass
+    def __init__(self, app, main):
+        super().__init__()
+
+        self.setWindowTitle("My Chat")
+        self.setFixedHeight(700)
+
+        self.app = app
+        self.main = main
+        self.chatWidget = ChatWidget()
+        self.listGroup = ListGroups()
+        self.chat = ChatWidget()
+        self.createGroupBtn = QPushButton("Create group")
+        self.joinGroupBtn = QPushButton("Join group")
+        self.logoutBtn = QPushButton("Log out")
+        label = QLabel("My Chat")
+
+        chatLayout = QHBoxLayout()
+        chatLayout.addWidget(self.listGroup)
+        chatLayout.addWidget(self.chatWidget)
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addWidget(self.createGroupBtn)
+        buttonLayout.addWidget(self.joinGroupBtn)
+        buttonLayout.addWidget(self.logoutBtn)
+        layout = QVBoxLayout()
+        layout.addWidget(label)
+        layout.addLayout(chatLayout)
+        layout.addLayout(buttonLayout)
+        
+        self.setLayout(layout)
+
+    def sendMessage(self):
+        text = self.input.text().strip()
+        if text:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M")
+            self.model.addMessage({"type": "message", "sender": "me", "text": text, "time": now})
+            self.input.clear()
+            self.view.scrollToBottom()

@@ -13,7 +13,7 @@ class Main():
         self.app = app
         self.user = None
         self.loop = None
-        self.mainWindow = StartWindow(self.app, self)
+        self.mainWindow = MainWindow(self.app, self)
         self.secondWindow = None
         self.dataSendQueue = asyncio.Queue()
 
@@ -28,6 +28,12 @@ class Main():
     def handleData(self, data):
         if data["type"] == "signUp":
             self.handleSignUpResult(data["status"])
+        
+        elif data["type"] == "singIn":
+            self.handleSignInResult(data["data"])
+
+    def handleSignInResult(self, data):
+        pass
             
     def handleSignUpResult(self, success):
         if self.secondWindow is not None:

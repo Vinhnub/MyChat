@@ -2,6 +2,9 @@
 __pycache__/
 *.pyc
 
+client/__pycache__/
+*.pyc
+
 # Bỏ log file
 *.log
 
