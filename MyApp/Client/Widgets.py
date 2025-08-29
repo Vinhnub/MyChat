@@ -1,8 +1,8 @@
-from PySide6.QtWidgets import QListWidget, QSplitter, QComboBox, QTabWidget, QAbstractItemView, QListWidget, QRadioButton, QButtonGroup, QCheckBox,QGroupBox,QGridLayout, QSizePolicy, QTextEdit, QLineEdit, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox, QLabel
+from PySide6.QtWidgets import QMainWindow, QListWidget, QSplitter, QComboBox, QTabWidget, QAbstractItemView, QListWidget, QRadioButton, QButtonGroup, QCheckBox,QGroupBox,QGridLayout, QSizePolicy, QTextEdit, QLineEdit, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox, QLabel
 from clientSocket import *
-from PySide6.QtWidgets import QDialog, QApplication, QWidget, QVBoxLayout, QListView, QLineEdit, QPushButton, QStyledItemDelegate
+from PySide6.QtWidgets import QStatusBar, QToolBar, QDialog, QApplication, QWidget, QVBoxLayout, QListView, QLineEdit, QPushButton, QStyledItemDelegate
 from PySide6.QtCore import  Qt, QAbstractListModel, QModelIndex, QRect, QSize, QPoint, Signal, QObject
-from PySide6.QtGui import  QPainter, QColor, QFont
+from PySide6.QtGui import  QAction, QPainter, QColor, QFont, QIcon, QPixmap
 from datetime import datetime
 from PySide6.QtCore import Signal, QObject
 
@@ -10,33 +10,31 @@ class WidgetSignUp(QDialog):
     def __init__(self, client):
         super().__init__()
         self.setWindowTitle("Sign Up")
-        self.name = None
-        self.passW = None
-        self.confirm = None
         self.client = client
+        self.client.signUpMessage.connect(self.PrintResultSignUp)
 
-        username = QLabel("Username: ")
+        self.username = QLabel("Username: ")
         self.lineInputUsername = QLineEdit()
         
-        passW = QLabel("PassWorld: ")
+        self.passW = QLabel("PassWorld: ")
         self.lineInputPassW = QLineEdit()
         self.lineInputPassW.setEchoMode(QLineEdit.Password)
 
-        passWAgain = QLabel("Confirm: ")
+        self.passWAgain = QLabel("Confirm: ")
         self.lineInputPassWAgain = QLineEdit()
         self.lineInputPassWAgain.setEchoMode(QLineEdit.Password)
         self.lineInputPassWAgain.returnPressed.connect(self.checkSignUp)
 
         layOutUserH = QHBoxLayout()
-        layOutUserH.addWidget(username)
+        layOutUserH.addWidget(self.username)
         layOutUserH.addWidget(self.lineInputUsername)
 
         layOutPassH = QHBoxLayout()
-        layOutPassH.addWidget(passW)
+        layOutPassH.addWidget(self.passW)
         layOutPassH.addWidget(self.lineInputPassW)
 
         layOutPassAH = QHBoxLayout()
-        layOutPassAH.addWidget(passWAgain)
+        layOutPassAH.addWidget(self.passWAgain)
         layOutPassAH.addWidget(self.lineInputPassWAgain)
 
         SignUpBtn = QPushButton("Sign Up")
@@ -51,20 +49,29 @@ class WidgetSignUp(QDialog):
         self.setLayout(layOutV)
         
     def checkSignUp(self):
-        self.name = self.lineInputUsername.text()
-        self.passW = self.lineInputPassW.text()
-        self.confirm = self.lineInputPassWAgain.text()
-        if not self.name or not self.passW or not self.confirm:
+        name = self.lineInputUsername.text()
+        passW = self.lineInputPassW.text()
+        confirm = self.lineInputPassWAgain.text()
+        if not name or not passW or not confirm:
             QMessageBox.information(self, "Sign Up result", "Invalid SignUp!")
+            self.username.setStyleSheet("color: red; font-weight: bold;")
+            self.passW.setStyleSheet("color: red; font-weight: bold;")
+            self.passWAgain.setStyleSheet("color: red; font-weight: bold;")
             return
-        elif self.passW != self.confirm:
+        elif passW != confirm:
             QMessageBox.information(self, "Sign Up result", "confirm passW is not match")
+            self.passW.setStyleSheet("color: red; font-weight: bold;")
+            self.passWAgain.setStyleSheet("color: red; font-weight: bold;")
             return
         else:
-            self.client.setNamePsw(self.name, self.passW)
-            result = self.client.userLoginSignUp("signup")
-            QMessageBox.information(self, "Login result", result)
-            self.accept()
+            self.client.setNamePsw(name, passW)
+            self.client.userLoginSignUp("signup")
+            
+    def PrintResultSignUp(self, msg):
+        result = msg
+        QMessageBox.information(self, "SignUp result", result)
+        self.accept()
+
 class WidgetLogin(QWidget):
     def __init__(self, app, client, stack=None):
         super().__init__()
@@ -73,29 +80,26 @@ class WidgetLogin(QWidget):
         self.client = client
         self.stack = stack
         self.msg = ""
+        self.client.loginMessage.connect(self.PrintResultLogin)
 
-        username = QLabel("Username: ")
+        self.username = QLabel("Username: ")
         self.lineInputUsername = QLineEdit()
         
-        passW = QLabel("PassWorld: ")
+        self.passW = QLabel("PassWorld: ")
         self.lineInputPassW = QLineEdit()
-
+        self.lineInputPassW.setEchoMode(QLineEdit.Password)
         LoginButton = QPushButton("Login")
         LoginButton.clicked.connect(self.CheckValid)
 
         quitButton = QPushButton("Sign up")
         quitButton.clicked.connect(self.signUp)
-        
-        self.ContentSplit = QListWidget()
-        self.ContentSplit.addItems(["Huy", "Nam", "Linh", "An"])
-        self.ContentSplit.hide()
 
         layOutUserH = QHBoxLayout()
-        layOutUserH.addWidget(username)
+        layOutUserH.addWidget(self.username)
         layOutUserH.addWidget(self.lineInputUsername)
 
         layOutPassH = QHBoxLayout()
-        layOutPassH.addWidget(passW)
+        layOutPassH.addWidget(self.passW)
         layOutPassH.addWidget(self.lineInputPassW)
 
         layOutLoginH = QHBoxLayout()
@@ -107,68 +111,91 @@ class WidgetLogin(QWidget):
         layOutV.addLayout(layOutPassH)
         layOutV.addLayout(layOutLoginH)
         
-        leftWidget = QWidget()
-        leftWidget.setLayout(layOutV)
-
-        layOutSplit = QSplitter(Qt.Horizontal)
-        layOutSplit.addWidget(leftWidget)
-        layOutSplit.addWidget(self.ContentSplit)
-        
-        mainLayout = QVBoxLayout()
-        mainLayout.addWidget(layOutSplit)
-
-        self.setLayout(mainLayout)
+        self.setLayout(layOutV)
 
     
     def CheckValid(self):
         username = self.lineInputUsername.text()
         password = self.lineInputPassW.text()
-        self.client.setNamePsw(username, password)
-        result = self.client.userLoginSignUp("login")
-        QMessageBox.information(self, "Login result", result)
-        if self.stack and result == "login successfully":
-            self.client.startListenThread() # bat dau thread listen lien tuc
-            self.stack.setCurrentIndex(1)
+        if not username or not password:
+           self.username.setStyleSheet("color: red; font-weight: bold;")
+           self.passW.setStyleSheet("color: red; font-weight: bold;")
+           return
+        else:
+            self.client.setNamePsw(username, password)
+            self.client.userLoginSignUp("login")
+
+    def PrintResultLogin(self,msg):
+            result = msg
+            QMessageBox.information(self, "Login result", result)
+            if self.stack and result == "login successfully":
+                self.stack.setCurrentIndex(2)
         
     def signUp(self):
         dialog = WidgetSignUp(self.client)
         dialog.exec()
 
-#class WidgetStartChat(QWidget):
-#    def __init__(self, app, client, stack=None):
-#        super().__init__()
-#        self.setWindowTitle("StartChat")
-#        self.textEdit = QTextEdit()
-#        self.client = client
-#        self.client.newMessage.connect(self.displayMessage) # ket noi vao tin hieu cua client listen
-#        self.app = app
-#        
-#        self.viewChat = QTextEdit()
-#        self.viewChat.setReadOnly(True)
-#        
-#        InputText = QLabel("Text her: ")
-#        self.lineInputText = QLineEdit()
+class Profile(QMainWindow):
+    def __init__(self, app, client, stack=None):
+        super().__init__()
+        self.app = app
+        self.setWindowTitle("Profile")
+        self.stack = stack
+        self.client = client
+        self.client.searchMessage.connect(self.showSearch)
+        menuBar = self.menuBar()
 
-#        layOutTextH = QHBoxLayout()
-#        layOutTextH.addWidget(InputText)
-#        layOutTextH.addWidget(self.lineInputText)
 
-#        layOutV = QVBoxLayout()
-#        layOutV.addWidget(self.viewChat)
-#        layOutV.addLayout(layOutTextH)
+        meMenu = menuBar.addMenu(QIcon("image/useraccount"), "&Me")
+        SearchAcction = meMenu.addAction(QIcon("image/searchicon"), "Search All")
+        SearchAcction.triggered.connect(self.searchFunction)
 
-#        self.lineInputText.editingFinished.connect(self.EditFinished)
+        self.userSplit = QListWidget()
+        self.userSplit.hide()
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.userSplit)
+        rightWidget = QWidget()      # bọc hbox vào QWidget
+        rightWidget.setLayout(hbox)
 
-#        self.setLayout(layOutV)
+        frendlist = QListWidget()
+        frendlist.addItems(["Huy", "Nam"])
+        frendlist.show()
 
-#    def EditFinished(self):
-#        self.msg = self.lineInputText.text()
-#        self.lineInputText.clear()
-#        self.client.sendChat(self.msg)
+        btnBack = QPushButton("BackToMainChat")
+        btnBack.clicked.connect(self.backToMainChat)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(frendlist)
+        vbox.addWidget(btnBack)
+
+        leftWidget = QWidget()
+        leftWidget.setLayout(vbox)
+
+
+        layOutSplit = QSplitter(Qt.Horizontal)
+        layOutSplit.addWidget(leftWidget)
+        layOutSplit.addWidget(rightWidget)
+        
+        self.userSplit.itemClicked.connect(self.itemClicked)
+
+        # working with status bars
+        #self.setStatusBar(QStatusBar(self))
+        self.setCentralWidget(layOutSplit)
+   
+    def searchFunction(self):
+        self.client.searchUser("Search", name=None)
     
-#    def displayMessage(self, msg):
-#        self.viewChat.append(msg)
+    def showSearch(self, users):
+        print("Received users:", users)
+        self.userSplit.addItems(users)
+        self.userSplit.show()
 
+    def itemClicked(self, item):
+        username = item.text()
+        QMessageBox.information(self, "User clicked", f"Bạn vừa chọn: {username}")
+    
+    def backToMainChat(self):
+        self.stack.setCurrentIndex(1)
 
 # ---- Model ----
 class ChatModel(QAbstractListModel):
@@ -203,7 +230,6 @@ class ChatModel(QAbstractListModel):
         self.beginInsertRows(QModelIndex(), len(self.messages), len(self.messages))
         self.messages.append(msg)
         self.endInsertRows()
-
 
 # ---- Delegate ----
 class ChatDelegate(QStyledItemDelegate):
@@ -295,7 +321,6 @@ class ChatDelegate(QStyledItemDelegate):
 
         return textRect.size() + QSize(30, 30 + timeRect.height())
 
-
 # ---- Window ----
 class ChatWindow(QWidget):
     def __init__(self, app, client, stack=None):
@@ -317,20 +342,31 @@ class ChatWindow(QWidget):
         self.view.setItemDelegate(ChatDelegate())
 
         self.input = QLineEdit()
+        self.imageSend = QLabel()
+        self.imageSend.setPixmap(QPixmap("image/send"))
+        self.imageSend.setFixedSize(32, 32) 
+        self.imageSend.setScaledContents(True)
+
+        layoutH = QHBoxLayout()
+        layoutH.addWidget(self.input)
+        layoutH.addWidget(self.imageSend)
 
         layout = QVBoxLayout()
         layout.addWidget(self.view)
-        layout.addWidget(self.input)
+        layout.addLayout(layoutH)
+
         self.setLayout(layout)
         self.input.editingFinished.connect(self.EditFinished)
         
     def sendMess(self, msg):
         text = msg
-        if text:
+        if text !="x":
             now = datetime.now().strftime("%d/%m/%Y %H:%M")
             self.model.addMessage({"type": "message", "sender": "me", "text": text, "time": now})
             self.input.clear()
             self.view.scrollToBottom()
+        else:
+            self.app.quit()
 
     def recv(self, msg):
         text = msg
@@ -344,7 +380,9 @@ class ChatWindow(QWidget):
         self.msg = self.input.text()
         self.sendMess(self.msg)
         self.input.clear()
-        self.client.sendChat(self.msg)
+
+        # gui server
+        self.client.sendChat("message",self.msg)
 
 if __name__ == "__main__":
     app = QApplication([])
