@@ -1,15 +1,15 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from clientSocket import *
 from Widgets import *
 from PySide6.QtWidgets import QStackedWidget ,QApplication, QWidget, QMainWindow, QPushButton, QSlider
 from PySide6.QtGui import QPixmap, QIcon
 import sys
-
+import qasync 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         client = ClientChat()
-        client.startListenThread()
+        QTimer.singleShot(0, lambda: asyncio.create_task(client.connect()))
         
         self.stack = QStackedWidget()
         self.setWindowTitle("MyChat")     
@@ -27,7 +27,14 @@ class MainWindow(QWidget):
         self.setLayout(layout)
 
 if __name__ == "__main__":
-   app = QApplication(sys.argv)
-   window = MainWindow()
-   window.show()
-   app.exec()
+    app = QApplication(sys.argv)
+
+    # chạy Qt event loop kết hợp với asyncio
+    loop = qasync.QEventLoop(app)
+    asyncio.set_event_loop(loop)
+
+    window = MainWindow()
+    window.show()
+
+    with loop:
+        loop.run_forever()

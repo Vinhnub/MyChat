@@ -1,9 +1,8 @@
 from constant import *
 import json
-import socket
+import websockets
 from PySide6.QtCore import Signal, QObject
-import threading
-
+import asyncio
 class ClientChat(QObject):
 #   --- phan loai signal recv -----
     newMessage = Signal(str)
@@ -13,52 +12,51 @@ class ClientChat(QObject):
 
     def __init__(self):    
         super().__init__()
-        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        self.uri = "ws://127.0.0.1:5050" 
+        self.websocket = None
+
         self.username = None
         self.psw = None 
         self.validcheck = None
         self.connected = False
 
         self.msg = "login"
+    async def connect(self):
         try:
-            self.client.connect((HOST, SERVER_PORT))
-            self.connected = True
+            self.client = await websockets.connect(self.uri)
+            asyncio.create_task(self.listen_server())  # chạy song song lắng nghe
         except:
             print("Cannot connect to server")
+
 #------ dung de loging - signup -------
     def setNamePsw(self, username, psw):
         self.username = username
         self.psw = psw
 
-    def userLoginSignUp(self, msg):
+    async def userLoginSignUp(self, msg):
         self.msg = msg
         fullmsg = {"action": self.msg, "account": self.username, "passw": self.psw}
         json_str = json.dumps(fullmsg) + "\n"
-        self.client.sendall(json_str.encode(FORMAT))
+        await self.client.send(json_str)
 
-    def searchUser(self,msg,name=None):
+    async def searchUser(self,msg,name=None):
         self.msg = msg
         fullmsg = {"action": self.msg, "name": name}
         json_str = json.dumps(fullmsg) + "\n"
-        self.client.sendall(json_str.encode(FORMAT))
+        await self.client.send(json_str)
 
-#-------dung de chat va nhan tin nhan------------------ 
-    def startListenThread(self):
-        threading.Thread(target=self.listen_server, daemon=True).start()
+#-------dung de chat va nhan tin nhan------------------
 
-    def sendChat(self, type, msg):
+    async def sendChat(self, type, msg):
         self.msg = msg
         fullmsg = {"action": type, "msg": self.msg}
         json_str = json.dumps(fullmsg) + "\n"
-        self.client.sendall(json_str.encode(FORMAT))
+        await self.client.send(json_str)
     
-    def listen_server(self):
-        while True:
-            try:
-                data = self.client.recv(1024).decode(FORMAT)
-                if not data:
-                    break
-                data = json.loads(data)
+    async def listen_server(self):
+        try:
+            async for message in self.client:
+                data = json.loads(message)
                 action = data.get("action")
 
                 if action == MESSAGE:
@@ -73,8 +71,8 @@ class ClientChat(QObject):
                 if action == SEARCH:
                     msg = data.get("mess")
                     self.searchMessage.emit(msg)       
-            except:
-                break
+        except:
+            print(f"Connection closed: ")
 
 
 

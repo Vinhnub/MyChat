@@ -4,7 +4,6 @@ from PySide6.QtWidgets import QStatusBar, QToolBar, QDialog, QApplication, QWidg
 from PySide6.QtCore import  Qt, QAbstractListModel, QModelIndex, QRect, QSize, QPoint, Signal, QObject
 from PySide6.QtGui import  QAction, QPainter, QColor, QFont, QIcon, QPixmap
 from datetime import datetime
-from PySide6.QtCore import Signal, QObject
 class WidgetOptionUser(QDialog):
     def __init__(self, client, namefriend):
         super().__init__()
@@ -83,7 +82,7 @@ class WidgetSignUp(QDialog):
             return
         else:
             self.client.setNamePsw(name, passW)
-            self.client.userLoginSignUp("signup")
+            asyncio.create_task(self.client.userLoginSignUp("signup"))
             
     def PrintResultSignUp(self, msg):
         result = msg
@@ -141,7 +140,7 @@ class WidgetLogin(QWidget):
            return
         else:
             self.client.setNamePsw(username, password)
-            self.client.userLoginSignUp("login")
+            asyncio.create_task(self.client.userLoginSignUp("login"))
 
     def PrintResultLogin(self,msg):
             result = msg
@@ -217,7 +216,7 @@ class Profile(QMainWindow):
         self.setCentralWidget(self.layOutSplit)
    
     def searchFunction(self):
-        self.client.searchUser("Search", name=None)
+        asyncio.create_task(self.client.searchUser("Search", name=None))
     
     def showSearch(self, users):
         self.layOutSplit.setSizes([50, 150])
@@ -423,7 +422,7 @@ class ChatWindow(QWidget):
         self.input.clear()
 
         # gui server
-        self.client.sendChat("message",self.msg)
+        asyncio.create_task(self.client.sendChat("message",self.msg))
 
 if __name__ == "__main__":
     app = QApplication([])
