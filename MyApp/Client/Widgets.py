@@ -5,6 +5,24 @@ from PySide6.QtCore import  Qt, QAbstractListModel, QModelIndex, QRect, QSize, Q
 from PySide6.QtGui import  QAction, QPainter, QColor, QFont, QIcon, QPixmap
 from datetime import datetime
 from PySide6.QtCore import Signal, QObject
+class WidgetOptionUser(QDialog):
+    def __init__(self, client, namefriend):
+        super().__init__()
+        self.client = client
+        self.setWindowTitle("Option")
+
+        self.username = QLabel(namefriend)
+        self.addBtn = QPushButton("Add friend")
+        self.unfBtn = QPushButton("UnFriend")
+        self.inviteBtn = QPushButton("Invite")
+
+        layoutV = QVBoxLayout()
+        layoutV.addWidget(self.username)
+        layoutV.addWidget(self.addBtn)
+        layoutV.addWidget(self.unfBtn)
+        layoutV.addWidget(self.inviteBtn)
+
+        self.setLayout(layoutV)
 
 class WidgetSignUp(QDialog):
     def __init__(self, client):
@@ -149,50 +167,73 @@ class Profile(QMainWindow):
         meMenu = menuBar.addMenu(QIcon("image/useraccount"), "&Me")
         SearchAcction = meMenu.addAction(QIcon("image/searchicon"), "Search All")
         SearchAcction.triggered.connect(self.searchFunction)
-
+       
         self.userSplit = QListWidget()
         self.userSplit.hide()
         hbox = QHBoxLayout()
         hbox.addWidget(self.userSplit)
         rightWidget = QWidget()      # bọc hbox vào QWidget
         rightWidget.setLayout(hbox)
+        
+        self.groupBoxR = QGroupBox()
+        vboxR = QVBoxLayout()
+        vboxR.addWidget(self.userSplit)
+        self.groupBoxR.setLayout(vboxR)
 
-        frendlist = QListWidget()
-        frendlist.addItems(["Huy", "Nam"])
-        frendlist.show()
+        self.frendlist = QListWidget()
+        self.frendlist.addItems(["Huy", "Nam"])
+        self.frendlist.show()
+
+        rightWidget = QWidget()
+        rightLayout = QVBoxLayout()
+        rightLayout.addWidget(self.groupBoxR)
+        rightWidget.setLayout(rightLayout)
+        
+        self.groupBoxR.setFlat(True)
 
         btnBack = QPushButton("BackToMainChat")
         btnBack.clicked.connect(self.backToMainChat)
 
+        groupBox = QGroupBox("Friends")
         vbox = QVBoxLayout()
-        vbox.addWidget(frendlist)
+        vbox.addWidget(self.frendlist)
         vbox.addWidget(btnBack)
+        groupBox.setLayout(vbox)
 
         leftWidget = QWidget()
-        leftWidget.setLayout(vbox)
+        leftLayout = QVBoxLayout()
+        leftLayout.addWidget(groupBox)
+        leftWidget.setLayout(leftLayout)
 
 
-        layOutSplit = QSplitter(Qt.Horizontal)
-        layOutSplit.addWidget(leftWidget)
-        layOutSplit.addWidget(rightWidget)
-        
+        self.layOutSplit = QSplitter(Qt.Horizontal)
+        self.layOutSplit.addWidget(leftWidget)
+        self.layOutSplit.addWidget(rightWidget)
+
         self.userSplit.itemClicked.connect(self.itemClicked)
-
+        self.frendlist.itemClicked.connect(self.itemClicked)
         # working with status bars
         #self.setStatusBar(QStatusBar(self))
-        self.setCentralWidget(layOutSplit)
+        self.setCentralWidget(self.layOutSplit)
    
     def searchFunction(self):
         self.client.searchUser("Search", name=None)
     
     def showSearch(self, users):
+        self.layOutSplit.setSizes([50, 150])
+        self.userSplit.clear()
         print("Received users:", users)
+        self.userSplit.addItem("Search Result")
         self.userSplit.addItems(users)
         self.userSplit.show()
+        self.groupBoxR.setFlat(False)
 
     def itemClicked(self, item):
         username = item.text()
-        QMessageBox.information(self, "User clicked", f"Bạn vừa chọn: {username}")
+        if username == "Search Result":
+            return
+        option = WidgetOptionUser(self.client, username)
+        option.exec()
     
     def backToMainChat(self):
         self.stack.setCurrentIndex(1)
