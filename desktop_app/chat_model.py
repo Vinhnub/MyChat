@@ -33,8 +33,8 @@ class ChatModel(QAbstractListModel):
         if target:
             last = target[-1]
             if last["type"] == "message":
-                last_date = last["time"].split(" ")[0]
-                if last_date != msgDate:
+                lastData = last["time"].split(" ")[0]
+                if lastData != msgDate:
                     needDateItem = True
         else:
             # dataset rỗng thì chắc chắn cần ngày
@@ -120,24 +120,24 @@ class ChatDelegate(QStyledItemDelegate):
         bubbleRect = QRect(0, 0, bubbleW, bubbleH)
 
         # đặt vị trí bubble dưới tên (y = rect.top() + senderHeight + spacing)
-        y_top = rect.top() + senderRect.height() + spacing
+        yTop = rect.top() + senderRect.height() + spacing
         if sender == "me":
             # căn phải
-            bubbleRect.moveTopRight(QPoint(rect.right() - margin, y_top))
+            bubbleRect.moveTopRight(QPoint(rect.right() - margin, yTop))
         else:
             # căn trái
-            bubbleRect.moveTopLeft(QPoint(rect.left() + margin, y_top))
+            bubbleRect.moveTopLeft(QPoint(rect.left() + margin, yTop))
 
         # vẽ tên người gửi ở phía trên bubble, màu đen
         painter.setFont(senderFont)
         painter.setPen(Qt.black)
         if sender == "me":
-            sender_x = bubbleRect.right() - padding - senderRect.width()
+            senderX = bubbleRect.right() - padding - senderRect.width()
         else:
-            sender_x = bubbleRect.left() + padding
+            senderX = bubbleRect.left() + padding
         # sender_y dùng baseline tương đối (chúng ta đặt baseline ở rect.top() + senderRect.height())
-        sender_point = QPoint(sender_x, rect.top() + senderRect.height())
-        painter.drawText(sender_point, sender)
+        senderPoint = QPoint(senderX, rect.top() + senderRect.height())
+        painter.drawText(senderPoint, sender)
 
         # vẽ bubble
         color = QColor("#A8E6CF") if sender == "me" else QColor("#D3D3D3")

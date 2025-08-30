@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat Client</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Welcome Screen -->
+    <div id="welcome">
+      <h2>Welcome</h2>
+      <button onclick="showLogin()">Login</button>
+      <button onclick="showRegister()">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm" class="auth-form">
+      <h2>Login</h2>
+      <input type="text" id="login-username" placeholder="Username">
+      <input type="password" id="login-password" placeholder="Password">
+      <button onclick="signIn()">Login</button>
+      <p class="switch" onclick="showRegister()">Don't have an account? Register</p>
+      <p id="login-status"></p>
+    </div>
+
+    <!-- Register Form -->
+    <div id="registerForm" class="auth-form">
+      <h2>Register</h2>
+      <input type="text" id="reg-fullname" placeholder="Full name">
+      <input type="text" id="reg-username" placeholder="Username">
+      <input type="password" id="reg-password" placeholder="Password">
+      <button onclick="signUp()">Register</button>
+      <p class="switch" onclick="showLogin()">Already have an account? Login</p>
+      <p id="register-status"></p>
+    </div>
+
+    <!-- Chat Area -->
+    <div id="chat">
+      <h2>Chat Room</h2>
+      <div id="messages"></div>
+      <div class="msg-box">
+        <input type="text" id="msgInput" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

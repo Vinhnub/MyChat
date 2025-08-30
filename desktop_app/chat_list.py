@@ -22,7 +22,6 @@ class ChatItemWidget(QWidget):
 class ListGroups(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Danh sách hội thoại")
         self.setFixedWidth(250)
 
         self.listWidget = QListWidget()
