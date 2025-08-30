@@ -1,40 +1,53 @@
-from PySide6.QtCore import Qt, QTimer
-from clientSocket import *
-from Widgets import *
-from PySide6.QtWidgets import QStackedWidget ,QApplication, QWidget, QMainWindow, QPushButton, QSlider
-from PySide6.QtGui import QPixmap, QIcon
-import sys
-import qasync 
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QStackedWidget
+import sys, asyncio, qasync
+
+from clientSocket import ClientChat
+from Widgets import WidgetLogin, ChatWindow, Profile
+
+
 class MainWindow(QWidget):
-    def __init__(self):
+    def __init__(self, app):
         super().__init__()
-        client = ClientChat()
-        QTimer.singleShot(0, lambda: asyncio.create_task(client.connect()))
-        
+        self.app = app
+        self.client = ClientChat()
+
         self.stack = QStackedWidget()
-        self.setWindowTitle("MyChat")     
-        
-        self.w1 = WidgetLogin(app, client, self.stack)
-        self.w2 = ChatWindow(app, client, self.stack)
-        self.w3 = Profile(app, client, self.stack)
+        self.setWindowTitle("MyChat")
+
+        self.w1 = WidgetLogin(self.app, self.client, self.stack)
+        self.w2 = ChatWindow(self.app, self.client, self.stack)
+        self.w3 = Profile(self.app, self.client, self.stack)
 
         self.stack.addWidget(self.w1)
         self.stack.addWidget(self.w2)
         self.stack.addWidget(self.w3)
-        
+
         layout = QVBoxLayout()
         layout.addWidget(self.stack)
         self.setLayout(layout)
 
+        # chạy connect sau khi loop đã start
+#        QTimer.singleShot(0, self.start_client)
+
+#    def start_client(self):
+#        asyncio.create_task(self.client.connect())
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-
-    # chạy Qt event loop kết hợp với asyncio
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
 
-    window = MainWindow()
+    window = MainWindow(app)
     window.show()
 
+    # Đặt connect() sau khi window tạo xong và loop đang quản lý
+    loop.create_task(window.client.connect())
+
     with loop:
-        loop.run_forever()
+        try:
+            loop.run_forever()
+        except KeyboardInterrupt:
+            pass
+

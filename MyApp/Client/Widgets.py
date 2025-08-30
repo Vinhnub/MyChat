@@ -5,15 +5,25 @@ from PySide6.QtCore import  Qt, QAbstractListModel, QModelIndex, QRect, QSize, Q
 from PySide6.QtGui import  QAction, QPainter, QColor, QFont, QIcon, QPixmap
 from datetime import datetime
 class WidgetOptionUser(QDialog):
-    def __init__(self, client, namefriend):
+    def __init__(self, client, clientName, namefriend):
         super().__init__()
         self.client = client
         self.setWindowTitle("Option")
+        self.namefriend = namefriend
+        self.clientName = clientName
+        self.client.optionMessage.connect(self.printResut)
 
-        self.username = QLabel(namefriend)
+        self.username = QLabel(self.namefriend)
+
         self.addBtn = QPushButton("Add friend")
+        self.addBtn.clicked.connect(lambda: self.sendOption("add"))
+
         self.unfBtn = QPushButton("UnFriend")
+        self.unfBtn.clicked.connect(lambda: self.sendOption("unfriend"))
+
         self.inviteBtn = QPushButton("Invite")
+        self.inviteBtn.clicked.connect(lambda: self.sendOption("invite"))
+
 
         layoutV = QVBoxLayout()
         layoutV.addWidget(self.username)
@@ -23,6 +33,11 @@ class WidgetOptionUser(QDialog):
 
         self.setLayout(layoutV)
 
+    def sendOption(self, option):
+        asyncio.create_task(self.client.clientSendOption(option, self.clientName, self.namefriend))
+    def printResut(self, result):
+        QMessageBox.information(self, "Response",result)
+        
 class WidgetSignUp(QDialog):
     def __init__(self, client):
         super().__init__()
@@ -146,11 +161,16 @@ class WidgetLogin(QWidget):
             result = msg
             QMessageBox.information(self, "Login result", result)
             if self.stack and result == "login successfully":
+                profile: Profile = self.stack.widget(2)
+                profile.setUserInfo(self.lineInputUsername.text())
+                profile.updateMenu()
                 self.stack.setCurrentIndex(2)
         
     def signUp(self):
         dialog = WidgetSignUp(self.client)
-        dialog.exec()
+        dialog.setAttribute(Qt.WA_DeleteOnClose, True)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        dialog.show()
 
 class Profile(QMainWindow):
     def __init__(self, app, client, stack=None):
@@ -161,12 +181,13 @@ class Profile(QMainWindow):
         self.client = client
         self.client.searchMessage.connect(self.showSearch)
         menuBar = self.menuBar()
-
+        self.clientName = None
 
         meMenu = menuBar.addMenu(QIcon("image/useraccount"), "&Me")
         SearchAcction = meMenu.addAction(QIcon("image/searchicon"), "Search All")
         SearchAcction.triggered.connect(self.searchFunction)
-       
+        
+        
         self.userSplit = QListWidget()
         self.userSplit.hide()
         hbox = QHBoxLayout()
@@ -214,7 +235,20 @@ class Profile(QMainWindow):
         # working with status bars
         #self.setStatusBar(QStatusBar(self))
         self.setCentralWidget(self.layOutSplit)
-   
+
+    def setUserInfo(self, name: str):
+        self.clientName = name
+    def updateMenu(self):
+        mb = self.menuBar()
+        mb.clear()
+        meMenu = mb.addMenu(QIcon("image/useraccount"), "&Me")
+        searchAction = meMenu.addAction(QIcon("image/searchicon"), "Search All")
+        searchAction.triggered.connect(self.searchFunction)
+
+        # chỉ add menu tên khi có string hợp lệ
+        if self.clientName:
+            mb.addMenu(str(self.clientName))
+
     def searchFunction(self):
         asyncio.create_task(self.client.searchUser("Search", name=None))
     
@@ -231,12 +265,13 @@ class Profile(QMainWindow):
         username = item.text()
         if username == "Search Result":
             return
-        option = WidgetOptionUser(self.client, username)
-        option.exec()
+        option = WidgetOptionUser(self.client, self.clientName, username)
+        option.setModal(True) 
+        option.show()
     
     def backToMainChat(self):
         self.stack.setCurrentIndex(1)
-
+    
 # ---- Model ----
 class ChatModel(QAbstractListModel):
     def __init__(self, messages=None):
@@ -421,10 +456,3 @@ class ChatWindow(QWidget):
 
         # gui server
         asyncio.create_task(self.client.sendChat("message",self.msg))
-
-if __name__ == "__main__":
-    app = QApplication([])
-    win = ChatWindow()
-    win.resize(400, 500)
-    win.show()
-    app.exec()
