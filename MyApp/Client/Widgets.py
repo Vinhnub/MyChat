@@ -400,13 +400,11 @@ class ChatWindow(QWidget):
         
     def sendMess(self, msg):
         text = msg
-        if text !="x":
+        if text:
             now = datetime.now().strftime("%d/%m/%Y %H:%M")
             self.model.addMessage({"type": "message", "sender": "me", "text": text, "time": now})
             self.input.clear()
             self.view.scrollToBottom()
-        else:
-            self.app.quit()
 
     def recv(self, msg):
         text = msg

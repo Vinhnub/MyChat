@@ -16,11 +16,11 @@ async def broadcast(msg, sender_name, sender_conn):
     for c in list(clients.keys()):
         if c != sender_conn:
             try:
-                await c.send(fullMsg)
+                await c.send(json.dumps(fullMsg))
             except:
                 removeWs.append(c)
     for ws in removeWs:
-        ws.close()
+        await ws.close()
         del clients[ws]
 
 def serverLogin(ws, msg,cursor):
@@ -85,33 +85,40 @@ async def handleClient(ws):
     cursor = connDB.cursor()
     print("client address:", addr)
     clients[ws] = None
+
     try:
         async for message in ws:
-            msg = json.loads(message)  # Chuyển JSON string -> dict
+            msg = json.loads(message)
             action = msg.get("action")
             if not msg:
                 break
-            print(f"client {clients[ws]}, {addr}, acction: {action}")
+            print(f"client {clients.get(ws)}, {addr}, action: {action}")
+
             if action == LOGIN:
-                res = serverLogin(ws,msg,cursor)
+                res = serverLogin(ws, msg, cursor)
                 await ws.send(res)
-            if action == SIGNUP:
-                res = serverSignUp(ws,msg,cursor,connDB)
+            elif action == SIGNUP:
+                res = serverSignUp(ws, msg, cursor, connDB)
                 await ws.send(res)
-            if action == SEARCH:
+            elif action == SEARCH:
                 name = msg.get("name")
-                res = serverSearch(ws,name,cursor)
+                res = serverSearch(ws, name, cursor)
                 await ws.send(res)
             else:
                 if msg.get("msg") == "x":
                     break
-                await broadcast(msg.get("msg"),clients[ws], ws)  
+                await broadcast(msg.get("msg"), clients.get(ws), ws)
+
+    except websockets.exceptions.ConnectionClosedOK:
+        print("Client closed connection normally:", addr)
+    except websockets.exceptions.ConnectionClosedError:
+        print("Client closed connection unexpectedly:", addr)
     finally:
-        print("client", addr, "finished")
-        await ws.close()
         connDB.close()
         if ws in clients:
             del clients[ws]
+        print("client finished:", addr)
+
 #----------------main----------------
 async def main():
     server = await websockets.serve(handleClient, "127.0.0.1", 5050)
