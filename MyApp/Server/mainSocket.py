@@ -44,7 +44,7 @@ def serverLogin(ws, msg,cursor):
     jsonStr = json.dumps(fullmsg)
     return jsonStr
 
-def serverSignUp(ws, msg, cursor):
+def serverSignUp(ws, msg, cursor, connDB):
     #recv account from client
     client_account = msg.get("account")
     client_pass = msg.get("passw")
@@ -56,6 +56,7 @@ def serverSignUp(ws, msg, cursor):
     else:
         cursor.execute("INSERT INTO useraccount (username, password) VALUES (?, ?)", (client_account, client_pass))
         clients[ws] = client_account
+        connDB.commit()
         mess = {"action": "signup", "result": " SignUp successfully"}
     jsonStr = json.dumps(mess)
     print(mess)
@@ -95,7 +96,7 @@ async def handleClient(ws):
                 res = serverLogin(ws,msg,cursor)
                 await ws.send(res)
             if action == SIGNUP:
-                res = serverSignUp(ws,msg,cursor)
+                res = serverSignUp(ws,msg,cursor,connDB)
                 await ws.send(res)
             if action == SEARCH:
                 name = msg.get("name")
@@ -108,6 +109,7 @@ async def handleClient(ws):
     finally:
         print("client", addr, "finished")
         await ws.close()
+        connDB.close()
         if ws in clients:
             del clients[ws]
 #----------------main----------------
