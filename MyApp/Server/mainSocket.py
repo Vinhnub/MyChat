@@ -16,24 +16,20 @@ async def broadcast(msg, sender_name, sender_conn):
     for c in list(clients.keys()):
         if c != sender_conn:
             try:
-                await c.send(json.dumps(fullMsg))
+                await c.send(fullMsg)
             except:
                 removeWs.append(c)
     for ws in removeWs:
-        await ws.close()
+        ws.close()
         del clients[ws]
 
-async def serverLogin(ws, msg):
-    connDB = sqlite3.connect(path)
-    cursor = connDB.cursor()
-
+def serverLogin(ws, msg,cursor):
     #recv account from client
     client_account = msg.get("account")
     client_passw = msg.get("passw")
 
     cursor.execute("SELECT password FROM useraccount WHERE username = ?", (client_account,))
     results = cursor.fetchone()
-    data_password =  results[0]
     if results:
         data_password = results[0]
         if client_passw == data_password:
@@ -43,15 +39,12 @@ async def serverLogin(ws, msg):
             result = "Invalid password"
     else:
         result = "Username not found"
+    print(result)
     fullmsg = {"action": LOGIN, "result": result}
-    json_str = json.dumps(fullmsg)
-    await ws.send(json_str)
+    jsonStr = json.dumps(fullmsg)
+    return jsonStr
 
-    connDB.close()
-
-async def serverSignUp(ws, msg):
-    connDB = sqlite3.connect(path)
-    cursor = connDB.cursor()
+def serverSignUp(ws, msg, cursor):
     #recv account from client
     client_account = msg.get("account")
     client_pass = msg.get("passw")
@@ -62,19 +55,14 @@ async def serverSignUp(ws, msg):
 
     else:
         cursor.execute("INSERT INTO useraccount (username, password) VALUES (?, ?)", (client_account, client_pass))
-        connDB.commit()
         clients[ws] = client_account
         mess = {"action": "signup", "result": " SignUp successfully"}
-
+    jsonStr = json.dumps(mess)
     print(mess)
-    await ws.send(json.dumps(mess))
-    connDB.commit()
-    connDB.close()
-    
-async def serverSearch(ws, name):
+    return jsonStr
+
+def serverSearch(ws, name,cursor):
     users = []
-    connDB = sqlite3.connect(path)
-    cursor = connDB.cursor()
     if name is None:
         cursor.execute("SELECT * FROM useraccount")
         for row in cursor.fetchall():
@@ -86,14 +74,14 @@ async def serverSearch(ws, name):
         for row in cursor.fetchall():
             users.append(row[0])
         fullmess = {"action":SEARCH, "mess": users}
-
-    await ws.send(json.dumps(fullmess))
-
-    connDB.close()
+    jsonStr = json.dumps(fullmess)
+    return jsonStr
         
 #--------------- vong lap chinh cua moi thread client ------------
 async def handleClient(ws):
     addr = ws.remote_address
+    connDB = sqlite3.connect(path)
+    cursor = connDB.cursor()
     print("client address:", addr)
     clients[ws] = None
     try:
@@ -104,17 +92,19 @@ async def handleClient(ws):
                 break
             print(f"client {clients[ws]}, {addr}, acction: {action}")
             if action == LOGIN:
-                await serverLogin(ws,msg)
+                res = serverLogin(ws,msg,cursor)
+                await ws.send(res)
             if action == SIGNUP:
-                await serverSignUp(ws,msg)
-                
+                res = serverSignUp(ws,msg,cursor)
+                await ws.send(res)
             if action == SEARCH:
                 name = msg.get("name")
-                await serverSearch(ws,name)
+                res = serverSearch(ws,name,cursor)
+                await ws.send(res)
             else:
                 if msg.get("msg") == "x":
                     break
-                await broadcast(msg.get("msg"),clients[ws], ws)   
+                await broadcast(msg.get("msg"),clients[ws], ws)  
     finally:
         print("client", addr, "finished")
         await ws.close()
