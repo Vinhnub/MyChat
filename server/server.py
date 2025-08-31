@@ -1,3 +1,34 @@
+#  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒▒▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░▄░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██▌░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░▄▄███▀░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░█████░▄█░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░▄████████▀░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒░░░░░░░░░░░░░░░░░░░░░░░░▄█████████░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒░░░░░░░░░░░░░░░░░░░░░░░░░░▄███████▌░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒░░░░░░░░░░░░░░░░░░░░░░░░▄█████████░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒░░░░░░░░░░░░░░░░░░░░░▄███████████▌░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒░░░░░░░░░░░░░░░▄▄▄▄██████████████▌░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒░░░░░░░░░░░▄▄███████████████████▌░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒░░░░░░░░░▄██████████████████████▌░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒░░░░░░░░████████████████████████░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒█░░░░░▐██████████▌░▀▀███████████░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▐██░░░▄██████████▌░░░░░░░░░▀██▐█▌░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒██████░█████████ ░░░░░░░░░░▐█▐█▌░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▀▀▀▀░░░██████▀░░░░░░░░░░░░▐█▐█▌░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒░░░░▐█████▌░░░░░░░░░░░░▐█▐█▌░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒▒░░░░███▀██░░░░░░░░░░░░░█░█▌░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒▒▒▒░▐██░░░██░░░░░░░░▄▄████████▄▄▄▄▄▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒▒▒▒▒██▌░░░░█▄░░░░░░▄███████████████████▄▄▄▄▒▒▒▒▒▒▒▒▒▒▒
+#  ▒▒▒▒▒▒▒▒▒▐██▒▒░░░██▄▄██████████████████████████████████████
+#  ▒▒▒▒▒▒▒▒▒▒▐██▒▒▄███████████████████████████████████████████
+#  ▒▒▒▒▒▒▒▒▒▒▄▄███████████████████████████████████████████████
+#  ███████████████████████████████████████████████████████████
+
 import asyncio
 import websockets
 import time
@@ -11,8 +42,27 @@ groups = {}
 conn = sqlite3.connect("database/chat.db")
 cur = conn.cursor()
 
-def loadDataFor(username):
-    global userOnline, conn, cur
+def loadUserData():
+    global userData, conn, cur
+    cur.execute("SELECT userName, userPasswordHash FROM User;")
+    userData = {row[0] : row[1] for row in cur.fetchall()}
+    print(userData)
+
+def loadGroup():
+    global groups, conn, cur
+    cur.execute("SELECT groupName, E.userName, userFullName FROM MemberOf E INNER JOIN User U On E.userName = U.userName;")
+    for row in cur.fetchall():
+        if row[0] not in groups:
+            groups[row[0]] = {"members" : [(row[1], row[2])]}
+        else:
+            groups[row[0]]["members"].append((row[1], row[2]))
+    cur.execute("select groupName, groupPassword from GroupChat")
+    for row in cur.fetchall():
+        groups[row[0]]["password"] = row[1]
+    print(groups)
+
+def loadDataFor(username, websocket):
+    global userOnline, conn, cur, groups
 
     cur.execute("SELECT userFullName FROM User WHERE userName=?", (username,))
     userRow = cur.fetchone()
@@ -34,50 +84,38 @@ def loadDataFor(username):
         cur.execute("""
             SELECT mesID, mesContent, date, userName 
             FROM Message
-            WHERE groupID = (SELECT rowid FROM GroupChat WHERE groupName=?)
+            WHERE groupName = ?
             ORDER BY mesID DESC
         """, (groupName,))
         messages = cur.fetchall()
         
-        lastMessages = [
+        listMsg = [
             {"mesID": m[0], "mesContent": m[1], "date": m[2], "userName": m[3]} 
             for m in reversed(messages)
         ]
 
         groupsDict[groupName] = {
-            "lastMessages": lastMessages,
+            "listMsg": listMsg,
+            "members" : groups[groupName]["members"],
             "lastReadMessageID": lastReadMessageID
         }
 
     if username not in userOnline:
-        userOnline[username] = {"userFullName" : userFullName, "groups" : groupsDict}
+        userOnline[username] = {"userFullName" : userFullName, "ws" : websocket}
+        print(userOnline)
     
-    return {"userFullName": userFullName, "groups": groupsDict}
-    
-
-def loadUserData():
-    global userData, conn, cur
-    cur.execute("SELECT userName, userPasswordHash FROM User;")
-    userData = {row[0] : row[1] for row in cur.fetchall()}
-    print(userData)
-
-def loadGroup():
-    global groups, conn, cur
-    cur.execute("SELECT groupName, userName FROM MemberOf;")
-    for row in cur.fetchall():
-        if row[0] not in groups:
-            groups[row[0]] = {"members" : [row[1]]}
-        else:
-            groups[row[0]]["members"].append(row[1])
-    cur.execute("select groupName, groupPassword from GroupChat")
-    for row in cur.fetchall():
-        groups[row[0]]["password"] = row[1]
-    print(groups)
+    return {"username" : username, "userFullName": userFullName, "groups": groupsDict}
 
 def register(fullname, username, password):
     global userData, conn, cur
     userData[username] = password
     cur.execute("Insert into User (userName, userFullName, userPasswordHash) values (?, ?, ?)", (username, fullname, password))
+    conn.commit()
+
+def updateMessageDB(msg):
+    global conn, cur
+    msgData = (msg["mesContent"], msg["date"], msg["userName"], msg["groupName"])
+    cur.execute("INSERT INTO Message (mesContent, date, userName, groupName) VALUES (?, ?, ?, ?)", msgData)
     conn.commit()
 
 async def handleClient(websocket):
@@ -96,7 +134,7 @@ async def handleClient(websocket):
                     responseData = {"type" : "signUp", "status" : True}
                     await websocket.send(json.dumps(responseData))
 
-            if data["type"] == "singIn":
+            if data["type"] == "signIn":
                 if data["username"] in userOnline:
                     responseData = {"type" : "signIn", "status" : "error", "data" : None} # error happen when user already online and someone try to login
                     await websocket.send(json.dumps(responseData))
@@ -104,9 +142,18 @@ async def handleClient(websocket):
                     responseData = {"type" : "signIn", "status" : False, "data" : None} 
                     await websocket.send(json.dumps(responseData))
                 else:
-                    dataOfUser = loadDataFor(data["username"])
+                    username = data["username"]
+                    dataOfUser = loadDataFor(data["username"], websocket)
                     responseData = {"type" : "signIn", "status" : True, "data" : dataOfUser}
                     await websocket.send(json.dumps(responseData)) 
+            
+            if data["type"] == "sendMessage":
+                updateMessageDB(data["message"])
+                responseData = {"type" : "recvMessage", "message" : data["message"]}
+                for mem in groups[data["message"]["groupName"]]["members"]:
+                    if mem[0] in userOnline:
+                        print(mem[0])
+                        await userOnline[mem[0]]["ws"].send(json.dumps(responseData))
                     
 
     except websockets.exceptions.ConnectionClosed:

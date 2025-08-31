@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QWidget,  QLabel, QHBoxLayout,
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
 from chat_model import *
-from chat_list import *
+from list_group import *
 
 class StartWindow(QWidget):
     def __init__(self, app, main):
@@ -74,7 +74,7 @@ class SignInWindow(QWidget):
         enterBtn.setFont(QFont('Arial', 10))
         cancelBtn.setFont(QFont('Arial', 10))
 
-        enterBtn.clicked.connect(self.showError)
+        enterBtn.clicked.connect(self.enterClicked)
         cancelBtn.clicked.connect(self.cancelClicked)
         btnLayout.addWidget(cancelBtn)
         btnLayout.addWidget(enterBtn)
@@ -95,7 +95,9 @@ class SignInWindow(QWidget):
         self.main.signIn(self.usernameEntry.text(), self.passwordEntry.text())
 
     def showError(self):
-        pass
+        ret = QMessageBox.critical(self,"Error", "Something is wrong!", QMessageBox.Ok)
+        if ret == QMessageBox.Ok:
+            pass
 
 class SignUpWindow(QWidget):
     def __init__(self, app, main):
@@ -159,8 +161,8 @@ class SignUpWindow(QWidget):
             self.close()
 
 
-class MainWindow(QWidget):
-    def __init__(self, app, main):
+class ChatWindow(QWidget):
+    def __init__(self, app, main, data, myName):
         super().__init__()
 
         self.setWindowTitle("My Chat")
@@ -168,9 +170,8 @@ class MainWindow(QWidget):
 
         self.app = app
         self.main = main
-        self.chatWidget = ChatWidget()
-        self.listGroup = ListGroups()
-        self.chat = ChatWidget()
+        self.chatWidget = ChatWidget(self, data, myName)
+        self.listGroup = ListGroups(self, data)
         self.createGroupBtn = QPushButton("Create group")
         self.joinGroupBtn = QPushButton("Join group")
         self.logoutBtn = QPushButton("Log out")
@@ -190,10 +191,9 @@ class MainWindow(QWidget):
         
         self.setLayout(layout)
 
-    def sendMessage(self):
-        text = self.input.text().strip()
-        if text:
-            now = datetime.now().strftime("%d/%m/%Y %H:%M")
-            self.model.addMessage({"type": "message", "sender": "me", "text": text, "time": now})
-            self.input.clear()
-            self.view.scrollToBottom()
+    def sendMessage(self, msg):
+        self.main.sendMessage(msg)
+
+    def recvMessage(self, msg):
+        self.chatWidget.recvMessage(msg)
+        self.listGroup.moveToTop(msg["groupName"])

@@ -1,20 +1,59 @@
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QListView, QLineEdit, QPushButton, QStyledItemDelegate, QHBoxLayout
+from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QListView,
+                               QLineEdit, QPushButton, QStyledItemDelegate, QHBoxLayout)
 from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QRect, QSize, QPoint
 from PySide6.QtGui import QPainter, QColor, QFont, QFontMetrics
-
 from datetime import datetime
 
 
 # ---- Model ----
 class ChatModel(QAbstractListModel):
-    def __init__(self, messagesA=None, messagesB=None):
+    def __init__(self, data, myName):
         super().__init__()
-        self.messagesA = messagesA or []
-        self.messagesB = messagesB or []
-        self.active = 0  # 0 = dataset A, 1 = dataset B
+        self.myName = myName
+        self.dictMessages = {}
+        for group, lst in data.items():
+            self.dictMessages[group] = self._convertListToInternal(lst)
+
+        self.currentGroup = next(iter(self.dictMessages)) if self.dictMessages else None
+
+    def _convertRawMsg(self, raw):
+        if raw.get("type") in ("message", "date"):
+            return raw
+
+        dateStr = raw.get("date", "")
+        try:
+            dt = datetime.strptime(dateStr, "%Y/%m/%d %H:%M")
+            timeFormated = dt.strftime("%d/%m/%Y %H:%M")
+        except Exception:
+            timeFormated = dateStr.replace("-", "/")
+
+        senderName = raw.get("userName") or raw.get("sender") or "unknown"
+        return {
+            "type": "message",
+            "sender": senderName,
+            "text": raw.get("mesContent", raw.get("text", "")),
+            "time": timeFormated
+        }
+
+    def _convertListToInternal(self, rawList):
+        out = []
+        lastDate = None
+        for raw in rawList:
+            item = self._convertRawMsg(raw)
+            if item["type"] == "message":
+                dateOnly = item["time"].split(" ")[0]
+                if lastDate != dateOnly:
+                    out.append({"type": "date", "date": dateOnly})
+                    lastDate = dateOnly
+                out.append(item)
+            else:
+                out.append(item)
+                if item.get("date"):
+                    lastDate = item["date"]
+        return out
 
     def currentMessages(self):
-        return self.messagesA if self.active == 0 else self.messagesB
+        return self.dictMessages[self.currentGroup]
 
     def data(self, index, role):
         if role == Qt.DisplayRole:
@@ -23,24 +62,28 @@ class ChatModel(QAbstractListModel):
     def rowCount(self, parent=None):
         return len(self.currentMessages())
 
-    def addMessage(self, msg, which=None):
-        """Nếu which=None thì thêm vào dataset đang active"""
-        target = self.currentMessages() if which is None else (self.messagesA if which == 0 else self.messagesB)
+    def addMessage(self, rawMsg, which):
+        """rawMsg expected in new format {'mesID','mesContent','date','userName'}"""
+        msg = self._convertRawMsg(rawMsg)
+        target = self.dictMessages.setdefault(which, [])
 
-        # ---- kiểm tra ngày ----
-        msgDate = msg["time"].split(" ")[0]   # chỉ lấy phần dd/mm/yyyy
+        msgDate = msg["time"].split(" ")[0]
         needDateItem = False
         if target:
-            last = target[-1]
-            if last["type"] == "message":
+            last = None
+            for i in range(len(target) - 1, -1, -1):
+                if target[i].get("type") == "message":
+                    last = target[i]
+                    break
+            if last is not None:
                 lastData = last["time"].split(" ")[0]
                 if lastData != msgDate:
                     needDateItem = True
+            else:
+                needDateItem = True
         else:
-            # dataset rỗng thì chắc chắn cần ngày
             needDateItem = True
 
-        # Nếu target là dataset đang hiển thị thì báo insert
         if target is self.currentMessages():
             if needDateItem:
                 self.beginInsertRows(QModelIndex(), len(target), len(target))
@@ -55,24 +98,24 @@ class ChatModel(QAbstractListModel):
                 target.append({"type": "date", "date": msgDate})
             target.append(msg)
 
-
     def switchDataset(self, which):
-        if which != self.active:
-            self.active = which
-            # chỉ báo thay đổi layout, không reset toàn bộ
+        if which != self.currentGroup:
+            if which not in self.dictMessages:
+                self.dictMessages[which] = []
+            self.currentGroup = which
             self.layoutChanged.emit()
 
 
-
 class ChatDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
+    def __init__(self, myName, parent=None):
         super().__init__(parent)
-        self.maxCharsPerLine = 50  # số ký tự tối đa 1 dòng
+        self.maxCharsPerLine = 50
+        self.myName = myName
 
     def wrapTextByChar(self, text):
         lines = []
         for i in range(0, len(text), self.maxCharsPerLine):
-            lines.append(text[i:i+self.maxCharsPerLine])
+            lines.append(text[i:i + self.maxCharsPerLine])
         return "\n".join(lines)
 
     def paint(self, painter, option, index):
@@ -84,7 +127,7 @@ class ChatDelegate(QStyledItemDelegate):
         rect = option.rect
         margin = 10
         padding = 8
-        spacing = 4  # khoảng cách giữa tên và bubble
+        spacing = 4
 
         # date item
         if data["type"] == "date":
@@ -95,57 +138,50 @@ class ChatDelegate(QStyledItemDelegate):
             return
 
         text = self.wrapTextByChar(data["text"])
-        sender = data["sender"]
+        sender = data["sender"]     
+        is_me = (sender == self.myName)
         timeFull = data["time"]
-        timeShort = timeFull.split(" ")[1]
+        timeShort = timeFull.split(" ")[1] if " " in timeFull else timeFull
 
         # font
-        senderFont = QFont("Arial", 8)   # giống kích thước giờ
+        senderFont = QFont("Arial", 8)
         textFont = QFont("Arial", 10)
         timeFont = QFont("Arial", 8)
 
-        # đo kích thước bằng QFontMetrics
         fmText = QFontMetrics(textFont)
         textRect = fmText.boundingRect(QRect(0, 0, 1000, 0), Qt.TextWordWrap, text)
 
         fmSender = QFontMetrics(senderFont)
-        senderRect = fmSender.boundingRect(sender)
+        senderLabel = self.myName if is_me else sender   
+        senderRect = fmSender.boundingRect(senderLabel)
 
         fmTime = QFontMetrics(timeFont)
         timeRect = fmTime.boundingRect(timeShort)
 
-        # tính kích thước bubble (chưa đặt y)
         bubbleW = max(textRect.width(), timeRect.width()) + 2 * padding
         bubbleH = textRect.height() + timeRect.height() + 3 * padding
         bubbleRect = QRect(0, 0, bubbleW, bubbleH)
 
-        # đặt vị trí bubble dưới tên (y = rect.top() + senderHeight + spacing)
         yTop = rect.top() + senderRect.height() + spacing
-        if sender == "me":
-            # căn phải
+        if is_me:
             bubbleRect.moveTopRight(QPoint(rect.right() - margin, yTop))
         else:
-            # căn trái
             bubbleRect.moveTopLeft(QPoint(rect.left() + margin, yTop))
 
-        # vẽ tên người gửi ở phía trên bubble, màu đen
         painter.setFont(senderFont)
         painter.setPen(Qt.black)
-        if sender == "me":
+        if is_me:
             senderX = bubbleRect.right() - padding - senderRect.width()
         else:
             senderX = bubbleRect.left() + padding
-        # sender_y dùng baseline tương đối (chúng ta đặt baseline ở rect.top() + senderRect.height())
         senderPoint = QPoint(senderX, rect.top() + senderRect.height())
-        painter.drawText(senderPoint, sender)
+        painter.drawText(senderPoint, senderLabel)
 
-        # vẽ bubble
-        color = QColor("#A8E6CF") if sender == "me" else QColor("#D3D3D3")
+        color = QColor("#A8E6CF") if is_me else QColor("#D3D3D3")
         painter.setBrush(color)
         painter.setPen(Qt.NoPen)
         painter.drawRoundedRect(bubbleRect, 10, 10)
 
-        # vẽ text bên trong bubble
         painter.setFont(textFont)
         painter.setPen(Qt.black)
         realTextRect = QRect(bubbleRect.left() + padding,
@@ -154,7 +190,6 @@ class ChatDelegate(QStyledItemDelegate):
                              textRect.height())
         painter.drawText(realTextRect, Qt.TextWordWrap, text)
 
-        # vẽ time (giữ ở bottom-left của bubble)
         painter.setFont(timeFont)
         painter.setPen(Qt.darkGray)
         timePos = QPoint(bubbleRect.left() + padding,
@@ -171,7 +206,10 @@ class ChatDelegate(QStyledItemDelegate):
         if data["type"] == "date":
             return QSize(100, 25)
 
-        # dùng cùng fonts như paint để tính kích thước
+        sender = data["sender"]
+        is_me = (sender == self.myName)
+        senderLabel = self.myName if is_me else sender
+
         senderFont = QFont("Arial", 8)
         textFont = QFont("Arial", 10)
         timeFont = QFont("Arial", 8)
@@ -180,10 +218,10 @@ class ChatDelegate(QStyledItemDelegate):
         textRect = fmText.boundingRect(QRect(0, 0, 1000, 0), Qt.TextWordWrap, self.wrapTextByChar(data["text"]))
 
         fmSender = QFontMetrics(senderFont)
-        senderRect = fmSender.boundingRect(data["sender"])
+        senderRect = fmSender.boundingRect(senderLabel)
 
         fmTime = QFontMetrics(timeFont)
-        timeRect = fmTime.boundingRect(data["time"].split(" ")[1])
+        timeRect = fmTime.boundingRect(data["time"].split(" ")[1] if " " in data["time"] else data["time"])
 
         width = max(textRect.width(), senderRect.width(), timeRect.width()) + 2 * 8 + 10
         height = senderRect.height() + textRect.height() + timeRect.height() + 50
@@ -191,25 +229,22 @@ class ChatDelegate(QStyledItemDelegate):
         return QSize(width, height)
 
 
-# ---- Window ----
 class ChatWidget(QWidget):
-    def __init__(self):
+    def __init__(self, window, data, myName):
         super().__init__()
         self.setWindowTitle("Chat - 1 model, nhiều dataset")
         self.setFixedWidth(600)
+        self._window = window
+        self.myName = myName
 
-        self.model = ChatModel([
-            {"type": "date", "date": "26/08/2025"},
-            {"type": "message", "sender": "me", "text": "Hôm qua nè", "time": "26/08/2025 22:50"},
-            {"type": "date", "date": "27/08/2025"},
-            {"type": "message", "sender": "other", "text": "Hôm nay mới nè", "time": "27/08/2025 09:10"},
-        ])
+        self.model = ChatModel(data, myName)
+
         self.view = QListView()
         self.view.setModel(self.model)
-        self.view.setItemDelegate(ChatDelegate())
+        self.view.setItemDelegate(ChatDelegate(self.myName))
         self.input = QLineEdit()
         self.sendBtn = QPushButton("Send")
-        
+
         self.sendBtn.clicked.connect(self.sendMessage)
         self.input.returnPressed.connect(self.sendMessage)
 
@@ -221,25 +256,30 @@ class ChatWidget(QWidget):
         layout.addLayout(entryLayout)
         self.setLayout(layout)
 
-        self.check = 0
 
     def sendMessage(self):
         text = self.input.text().strip()
-        if text:
-            now = datetime.now().strftime("%d/%m/%Y %H:%M")
-            self.model.addMessage({"type": "message", "sender": "me", "text": text, "time": now})
+        if text != "":
+            nowDate = datetime.now()
+            date_iso = nowDate.strftime("%Y/%m/%d %H:%M")
+            msg = {
+                "mesContent": text,
+                "date": date_iso,
+                "userName": self.myName,
+                "groupName" : self.model.currentGroup
+            }
             self.input.clear()
+            self._window.sendMessage(msg)
             self.view.scrollToBottom()
 
-    def switchDataset(self):
-        self.check = 1 - self.check
-        self.model.switchDataset(self.check)
+    def recvMessage(self, msg):
+        rawMsg = {"mesID" : 0, "mesContent" : msg["mesContent"], "date" : msg["date"], "userName" : msg["userName"]}
+        groupName = msg["groupName"]
+        self.model.addMessage(rawMsg, groupName)
+        self.view.scrollToBottom()
+
+    def switchDataset(self, which):
+        self.model.switchDataset(which)
         self.view.scrollToBottom()
 
 
-
-if __name__ == "__main__":
-    app = QApplication([])
-    win = ChatWidget()
-    win.show()
-    app.exec()

@@ -13,7 +13,7 @@ class Main():
         self.app = app
         self.user = None
         self.loop = None
-        self.mainWindow = MainWindow(self.app, self)
+        self.mainWindow = StartWindow(self.app, self)
         self.secondWindow = None
         self.dataSendQueue = asyncio.Queue()
 
@@ -29,11 +29,11 @@ class Main():
         if data["type"] == "signUp":
             self.handleSignUpResult(data["status"])
         
-        elif data["type"] == "singIn":
-            self.handleSignInResult(data["data"])
-
-    def handleSignInResult(self, data):
-        pass
+        elif data["type"] == "signIn":
+            self.handleSignInResult(data)
+        
+        elif data["type"] == "recvMessage":
+            self.handleRecvMessage(data)
             
     def handleSignUpResult(self, success):
         if self.secondWindow is not None:
@@ -41,13 +41,32 @@ class Main():
                 self.secondWindow.showSuccess()
             else:
                 self.secondWindow.showError()
+            
+    def handleSignInResult(self, data):
+        if data["status"] == False or data["status"] == "error":
+            self.secondWindow.showError()
+        else:
+            self.secondWindow.close()
+            dataFilter = {}
+            for groupName in data["data"]["groups"].keys():
+                dataFilter[groupName] = data["data"]["groups"][groupName]["listMsg"]
+            print(dataFilter)
+            self.mainWindow = ChatWindow(self.app, self, dataFilter, data["data"]["username"])
+            self.mainWindow.show()
+
+    def handleRecvMessage(self, data):
+        self.mainWindow.recvMessage(data["message"])
 
     def signIn(self, username, password):
-        data = {"type" : "signIp", "username" : username, "password" : password}
+        data = {"type" : "signIn", "username" : username, "password" : password}
         self.addDataToQueue(data)
 
     def signUp(self, fullname, username, password):
         data = {"type" : "signUp", "fullname" : fullname, "username" : username, "password" : password}
+        self.addDataToQueue(data)
+
+    def sendMessage(self, msg):
+        data = {"type" : "sendMessage", "message" : msg}
         self.addDataToQueue(data)
 
     def addDataToQueue(self, data):
@@ -61,6 +80,7 @@ class Main():
         while True:
             try:
                 data = await self.dataSendQueue.get()
+                print(data)
                 await websocket.send(json.dumps(data))
             except:
                 pass

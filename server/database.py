@@ -80,7 +80,7 @@ for row in cur.fetchall():
     print(row)
 
 
-# cur.execute("delete from User")
+# cur.execute("delete from GroupChat")
 # conn.commit()
 
 # users = [
@@ -95,10 +95,10 @@ for row in cur.fetchall():
 # ]
 
 # messages = [
-#     ("Xin chào mọi người!", "2025-08-27 09:00", "vinh", "pythonDev"),
-#     ("Hello Vinh", "2025-08-27 09:05", "hoa", "pythonDev"),
-#     ("Hôm nay chơi Liên Minh?", "2025-08-27 10:00", "hoa", "gamers"),
-#     ("Ok luôn nè", "2025-08-27 10:10", "duc", "gamers"),
+#     ("Xin chào mọi người!", "2025/08/27 09:00", "vinh", "pythonDev"),
+#     ("Hello Vinh", "2025/08/27 09:05", "hoa", "pythonDev"),
+#     ("Hôm nay chơi Liên Minh?", "2025/08/27 10:00", "hoa", "gamers"),
+#     ("Ok luôn nè", "2025/08/27 10:10", "duc", "gamers"),
 # ]
 
 # members = [
@@ -116,5 +116,5 @@ for row in cur.fetchall():
 
 # conn.commit()
 
-conn.close
+conn.close()
 
