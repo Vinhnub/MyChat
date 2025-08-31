@@ -111,6 +111,7 @@ class WidgetLogin(QWidget):
         self.app = app
         self.client = client
         self.stack = stack
+        self.dialog = None
         self.msg = ""
         self.client.loginMessage.connect(self.PrintResultLogin)
 
@@ -164,13 +165,12 @@ class WidgetLogin(QWidget):
                 profile: Profile = self.stack.widget(2)
                 profile.setUserInfo(self.lineInputUsername.text())
                 profile.updateMenu()
+                profile.getFriend()
                 self.stack.setCurrentIndex(2)
         
     def signUp(self):
-        dialog = WidgetSignUp(self.client)
-        dialog.setAttribute(Qt.WA_DeleteOnClose, True)
-        dialog.setWindowModality(Qt.ApplicationModal)
-        dialog.show()
+        self.dialog = WidgetSignUp(self.client)
+        self.dialog.show()
 
 class Profile(QMainWindow):
     def __init__(self, app, client, stack=None):
@@ -180,8 +180,12 @@ class Profile(QMainWindow):
         self.stack = stack
         self.client = client
         self.client.searchMessage.connect(self.showSearch)
+        self.client.showFriendMessage.connect(self.showFriend)
+        self.chatPrivite = None
+        self.friendName = None
         menuBar = self.menuBar()
         self.clientName = None
+        self.task = None
 
         meMenu = menuBar.addMenu(QIcon("image/useraccount"), "&Me")
         SearchAcction = meMenu.addAction(QIcon("image/searchicon"), "Search All")
@@ -200,9 +204,8 @@ class Profile(QMainWindow):
         vboxR.addWidget(self.userSplit)
         self.groupBoxR.setLayout(vboxR)
 
-        self.frendlist = QListWidget()
-        self.frendlist.addItems(["Huy", "Nam"])
-        self.frendlist.show()
+        self.friendlist = QListWidget()
+        self.friendlist.show()
 
         rightWidget = QWidget()
         rightLayout = QVBoxLayout()
@@ -216,7 +219,7 @@ class Profile(QMainWindow):
 
         groupBox = QGroupBox("Friends")
         vbox = QVBoxLayout()
-        vbox.addWidget(self.frendlist)
+        vbox.addWidget(self.friendlist)
         vbox.addWidget(btnBack)
         groupBox.setLayout(vbox)
 
@@ -231,20 +234,20 @@ class Profile(QMainWindow):
         self.layOutSplit.addWidget(rightWidget)
 
         self.userSplit.itemClicked.connect(self.itemClicked)
-        self.frendlist.itemClicked.connect(self.itemClicked)
+        self.friendlist.itemClicked.connect(self.connectPrivitedChat)
         # working with status bars
         #self.setStatusBar(QStatusBar(self))
         self.setCentralWidget(self.layOutSplit)
 
     def setUserInfo(self, name: str):
         self.clientName = name
+
     def updateMenu(self):
         mb = self.menuBar()
         mb.clear()
         meMenu = mb.addMenu(QIcon("image/useraccount"), "&Me")
         searchAction = meMenu.addAction(QIcon("image/searchicon"), "Search All")
         searchAction.triggered.connect(self.searchFunction)
-
         # chỉ add menu tên khi có string hợp lệ
         if self.clientName:
             mb.addMenu(str(self.clientName))
@@ -260,7 +263,17 @@ class Profile(QMainWindow):
         self.userSplit.addItems(users)
         self.userSplit.show()
         self.groupBoxR.setFlat(False)
+    #----- show friend ------
+    def getFriend(self):
+        self.task = asyncio.create_task(self.client.clientShowFriend("showfriend", self.clientName))
+      
+    def showFriend(self, users):
+        self.friendlist.clear()
+        self.friendlist.addItems(users)
+        self.task.cancel()
+    #------------------------------
 
+    #------ handle event ------------
     def itemClicked(self, item):
         username = item.text()
         if username == "Search Result":
@@ -268,7 +281,12 @@ class Profile(QMainWindow):
         option = WidgetOptionUser(self.client, self.clientName, username)
         option.setModal(True) 
         option.show()
-    
+
+    def connectPrivitedChat(self, item):
+        self.friendName = item.text()
+        self.chatPrivite = ChatWindow(self.app, self.client, self.clientName, self.friendName, privite=True)
+        self.chatPrivite.show()
+        
     def backToMainChat(self):
         self.stack.setCurrentIndex(1)
     
@@ -398,19 +416,26 @@ class ChatDelegate(QStyledItemDelegate):
 
 # ---- Window ----
 class ChatWindow(QWidget):
-    def __init__(self, app, client, stack=None):
+    def __init__(self, app, client, clientName=None, recvName=None, privite=False, stack=None):
         super().__init__()
-        self.setWindowTitle("Chat (Divider by Date + Short Time)")
+        self.setWindowTitle(recvName)
         self.app = app
+        self.privite = privite
+        self.clientName = clientName
+        self.recvName = recvName
+
         self.model = ChatModel([
             {"type": "date", "date": "26/08/2025"},
             {"type": "message", "sender": "me", "text": "Hôm qua nè", "time": "26/08/2025 22:50"},
             {"type": "date", "date": "27/08/2025"},
             {"type": "message", "sender": "other", "text": "Hôm nay mới nè", "time": "27/08/2025 09:10"},
         ])
-
         self.client = client
-        self.client.newMessage.connect(self.recv)
+
+        if not self.privite:
+           self.client.newMessage.connect(self.recv)
+        else:
+            self.client.priviteChatMessage.connect(self.recv)
 
         self.view = QListView()
         self.view.setModel(self.model)
@@ -441,18 +466,31 @@ class ChatWindow(QWidget):
             self.input.clear()
             self.view.scrollToBottom()
 
-    def recv(self, msg):
+    def recv(self, msg,sender=None):
+        print("Da nhan duoc tin nhan")
+        print(msg)
+        print(sender)
         text = msg
-        if text:
-            now = datetime.now().strftime("%d/%m/%Y %H:%M")
-            self.model.addMessage({"type": "message", "sender": "friend", "text": text, "time": now})
-            self.input.clear()
-            self.view.scrollToBottom()  
+        if sender is None:
+            if text:
+                now = datetime.now().strftime("%d/%m/%Y %H:%M")
+                self.model.addMessage({"type": "message", "sender": "friend", "text": text, "time": now})
+                self.input.clear()
+                self.view.scrollToBottom() 
+        else:
+            if text:
+                now = datetime.now().strftime("%d/%m/%Y %H:%M")
+                self.model.addMessage({"type": "message", "sender": "friend", "text": text, "time": now})
+                self.input.clear()
+                self.view.scrollToBottom() 
+        
 # them
     def EditFinished(self):
         self.msg = self.input.text()
         self.sendMess(self.msg)
         self.input.clear()
-
-        # gui server
-        asyncio.create_task(self.client.sendChat("message",self.msg))
+       # gui server
+        if not self.privite:
+            asyncio.create_task(self.client.sendChat("message",self.msg))
+        else:
+            asyncio.create_task(self.client.sendPriviteChat(self.clientName,self.recvName,self.msg))

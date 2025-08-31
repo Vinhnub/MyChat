@@ -76,7 +76,7 @@ cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (3,
 cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (3, 6, "member"))
 """
 
-
+cursor.execute("INSERT INTO status (id1, id2, status) VALUES (?, ?, ?)", (3, 2, "friend"))
 
 cursor.execute("SELECT * FROM account")
 for row in cursor.fetchall():

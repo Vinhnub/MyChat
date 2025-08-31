@@ -10,7 +10,9 @@ class ClientChat(QObject):
     loginMessage = Signal(str)
     signUpMessage = Signal(str)
     optionMessage = Signal(str)
-
+    showFriendMessage = Signal(list)
+    priviteChatMessage = Signal(str, str)
+    
     def __init__(self):    
         super().__init__()
         self.uri = "ws://26.198.149.7:61000" 
@@ -34,14 +36,20 @@ class ClientChat(QObject):
         self.username = username
         self.psw = psw
 
-    async def userLoginSignUp(self, msg):
-        self.msg = msg
+    async def userLoginSignUp(self, action):
+        self.msg = action
         fullmsg = {"action": self.msg, "account": self.username, "passw": self.psw}
         jsonStr = json.dumps(fullmsg) + "\n"
         await self.client.send(jsonStr)
 
-    async def searchUser(self,msg,name=None):
-        self.msg = msg
+    async def searchUser(self,action,name=None):
+        self.msg = action
+        fullmsg = {"action": self.msg, "name": name}
+        jsonStr = json.dumps(fullmsg) + "\n"
+        await self.client.send(jsonStr)
+
+    async def clientShowFriend(self,action,name):
+        self.msg = action
         fullmsg = {"action": self.msg, "name": name}
         jsonStr = json.dumps(fullmsg) + "\n"
         await self.client.send(jsonStr)
@@ -75,6 +83,13 @@ class ClientChat(QObject):
                 if action == REQUEST:
                     msg = data.get("mess")  
                     self.optionMessage.emit(msg)
+                if action == SHOWFRIEND:
+                    msg = data.get("mess")
+                    self.showFriendMessage.emit(msg)
+                if action == PRIVATECHAT:
+                    msg = data.get("msg")
+                    sender = data.get("sender")
+                    self.priviteChatMessage.emit(msg,sender)
         except:
             print(f"Connection closed: ")
 
@@ -84,6 +99,12 @@ class ClientChat(QObject):
         jsonStr = json.dumps(fullmsg) + "\n"
         await self.client.send(jsonStr)
         
+    async def sendPriviteChat(self,sender,recv,msg):
+        self.msg = msg
+        fullmsg = {"action": PRIVATECHAT, "sender": sender, "recv": recv, "msg": self.msg}
+        jsonStr = json.dumps(fullmsg) + "\n"
+        await self.client.send(jsonStr)
+
 
 
 

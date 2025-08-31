@@ -10,18 +10,28 @@ print("SERVER SIDE")
 print("server:", HOST, SERVER_PORT)
 print("Waiting for client")
 
-async def broadcast(msg, sender_name, sender_conn):
+async def broadcast(msg, senderName, senderConn, recv=None):
+    recvName = recv
     removeWs = []
-    fullMsg = {"action": "message", "sender": sender_name, "msg": msg}
-    for c in list(clients.keys()):
-        if c != sender_conn:
-            try:
-                await c.send(json.dumps(fullMsg))
-            except:
-                removeWs.append(c)
-    for ws in removeWs:
-        await ws.close()
-        del clients[ws]
+    fullMsg = {"action": "message", "sender": senderName, "msg": msg}
+    if recvName is None:
+        for c in list(clients.keys()):
+            if c != senderConn:
+                try:
+                    await c.send(json.dumps(fullMsg) + "\n")
+                except:
+                    removeWs.append(c)
+        for ws in removeWs:
+            await ws.close()
+            del clients[ws]
+    else:
+        fullMsg = {"action": PRIVATECHAT, "sender": senderName, "msg": msg}
+        for c in list(clients.keys()):
+            if c!= senderConn and clients[c] == recvName:
+                try:
+                    await c.send(json.dumps(fullMsg) + "\n")
+                except:
+                    print("error privite chat")
 
 def serverLogin(ws, msg,cursor):
     #recv account from client
@@ -72,8 +82,19 @@ def serverSearch(name,cursor):
     else:
         cursor.execute("SELECT name FROM account where name=?", (name,))
         for row in cursor.fetchall():
-            users.append(row[1])
+            users.append(row[0])
         fullmess = {"action":SEARCH, "mess": users}
+    jsonStr = json.dumps(fullmess)
+    return jsonStr
+
+def serverShowFriend(name, cursor):
+    friends = []
+    id1 = cursor.execute("Select id from account where name=?", (name,)).fetchone()[0]
+    idfriends = cursor.execute("Select id2 from status where id1 = ? and status=?",(id1, "friend")).fetchall()
+    for id in idfriends:
+        friends.append(cursor.execute("SELECT name FROM account where id=?", (id[0],)).fetchone()[0])
+    print(friends)
+    fullmess = {"action": SHOWFRIEND, "mess": friends}
     jsonStr = json.dumps(fullmess)
     return jsonStr
 
@@ -110,6 +131,7 @@ def serverRequest(msg, cursor):
     jsonStr = json.dumps(fullmess)
     return jsonStr
 
+
 #--------------- vong lap chinh cua client ------------
 async def handleClient(ws):
     addr = ws.remote_address
@@ -128,23 +150,25 @@ async def handleClient(ws):
 
             if action == LOGIN:
                 res = serverLogin(ws, msg, cursor)
-                await ws.send(res)
             elif action == SIGNUP:
                 res = serverSignUp(ws, msg, cursor, connDB)
-                await ws.send(res)
             elif action == SEARCH:
                 name = msg.get("name")
                 res = serverSearch(name, cursor)
-                await ws.send(res)
+            elif action == SHOWFRIEND:
+                name = msg.get("name")
+                res = serverShowFriend(name, cursor)
             elif action == REQUEST:
                 res = serverRequest(msg, cursor)
                 connDB.commit()
-                await ws.send(res)
+            elif action == PRIVATECHAT:
+                await broadcast(msg.get("msg"), clients.get(ws), ws, msg.get("recv"))
+                continue
             else:
                 if msg.get("msg") == "x":
                     break
                 await broadcast(msg.get("msg"), clients.get(ws), ws)
-
+            await ws.send(res)
     except websockets.exceptions.ConnectionClosedOK:
         print("Client closed connection normally:", addr)
     except websockets.exceptions.ConnectionClosedError:

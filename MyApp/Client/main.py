@@ -16,7 +16,7 @@ class MainWindow(QWidget):
         self.setWindowTitle("MyChat")
 
         self.w1 = WidgetLogin(self.app, self.client, self.stack)
-        self.w2 = ChatWindow(self.app, self.client, self.stack)
+        self.w2 = ChatWindow(self.app, self.client, stack=self.stack)
         self.w3 = Profile(self.app, self.client, self.stack)
 
         self.stack.addWidget(self.w1)
@@ -26,12 +26,6 @@ class MainWindow(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.stack)
         self.setLayout(layout)
-
-        # chạy connect sau khi loop đã start
-#        QTimer.singleShot(0, self.start_client)
-
-#    def start_client(self):
-#        asyncio.create_task(self.client.connect())
 
 
 if __name__ == "__main__":
