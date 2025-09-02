@@ -30,7 +30,7 @@ class ListGroups(QWidget):
 
         for groupName in data.keys():
             item = QListWidgetItem()
-            widget = ChatItemWidget(groupName, data[groupName][-1]["mesContent"])
+            widget = ChatItemWidget(groupName, data[groupName][-1]["mesContent"] if len(data[groupName]) != 0 else "") 
             item.setSizeHint(widget.sizeHint())
             self.listWidget.addItem(item)
             self.listWidget.setItemWidget(item, widget)
@@ -48,7 +48,7 @@ class ListGroups(QWidget):
         self._window.switchCurrentGroup(groupName)
         self._window.switchListMember(groupName)
 
-    def moveToTop(self, groupName, mesContent):
+    def moveToTop(self, groupName, mesContent, isMe):
         item, widget = self.dictGroups[groupName]
         row = self.listWidget.row(item)
         
@@ -63,7 +63,18 @@ class ListGroups(QWidget):
         self.listWidget.insertItem(0, taken)
         self.listWidget.setItemWidget(taken, newWidget)
 
+        if isMe: self.listWidget.setCurrentItem(taken)
+
         self.dictGroups[groupName] = (taken, newWidget)
+
+    def addGroup(self, data):
+        groupName = next(iter(data))
+        item = QListWidgetItem()
+        widget = ChatItemWidget(groupName, data[groupName]["listMsg"][-1]["mesContent"] if len(data[groupName]["listMsg"]) != 0 else "")
+        item.setSizeHint(widget.sizeHint())
+        self.listWidget.insertItem(0, item)
+        self.listWidget.setItemWidget(item, widget)
+        self.dictGroups[groupName] = (item, widget)
 
 # if __name__ == "__main__":
 #     app = QApplication(sys.argv)

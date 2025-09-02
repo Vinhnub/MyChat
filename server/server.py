@@ -56,9 +56,10 @@ def loadGroup():
             groups[row[0]] = {"members" : [(row[1], row[2])]}
         else:
             groups[row[0]]["members"].append((row[1], row[2]))
-    cur.execute("select groupName, groupPassword from GroupChat")
+    cur.execute("select groupName, groupPassword, groupDes from GroupChat")
     for row in cur.fetchall():
         groups[row[0]]["password"] = row[1]
+        groups[row[0]]["groupDes"] = row[2]
     print(groups)
 
 def loadDataFor(username, websocket):
@@ -112,6 +113,31 @@ def register(fullname, username, password):
     cur.execute("Insert into User (userName, userFullName, userPasswordHash) values (?, ?, ?)", (username, fullname, password))
     conn.commit()
 
+def createGroup(groupDes, groupName, groupPassword, userName):
+    global groups, conn, cur
+    groups[groupName] = {"members" : [(userName, userOnline[userName]["userFullName"])], "password" : groupPassword}
+    cur.execute("INSERT INTO GroupChat (groupName, groupPassword, groupDes, createdBy) values (?, ?, ?, ?)", (groupName, groupPassword, groupDes, userName))
+    cur.execute("INSERT INTO MemberOF (userName, groupName) values (?, ?)", (userName, groupName))
+    conn.commit()
+
+def joinGroup(groupName, groupPassword, userName):
+    global groups, conn, cur
+    cur.execute("insert into MemberOf (userName, groupName) values (?, ?)", (userName, groupName))
+    conn.commit()
+    groups[groupName]["members"].append((userName, userOnline[userName]["userFullName"]))
+    cur.execute("""
+            SELECT mesID, mesContent, date, userName 
+            FROM Message
+            WHERE groupName = ?
+            ORDER BY mesID DESC
+        """, (groupName,))
+    messages = cur.fetchall()
+    listMsg = [
+            {"mesID": m[0], "mesContent": m[1], "date": m[2], "userName": m[3]} 
+            for m in reversed(messages)
+        ]
+    return listMsg
+
 def updateMessageDB(msg):
     global conn, cur
     msgData = (msg["mesContent"], msg["date"], msg["userName"], msg["groupName"])
@@ -119,6 +145,7 @@ def updateMessageDB(msg):
     conn.commit()
 
 async def handleClient(websocket):
+    global groups, userData, userOnline
     print("New client connected.")
     username = None
     try:
@@ -159,7 +186,35 @@ async def handleClient(websocket):
                 else:
                     responseData = {"type" : "logout", "status" : False}
                 await websocket.send(json.dumps(responseData))
-                
+
+            if data["type"] == "createGroup":
+                if data["groupName"] in groups:
+                    responseData = {"type" : "createGroup", "status" : False, "data" : None}
+                else:
+                    createGroup(data["groupDes"], data["groupName"], data["groupPassword"], data["username"])
+                    responseData = {"type" : "createGroup", "status" : True, "data" : {data["groupName"] : 
+                                                                                       {"groupDes" : data["groupDes"], 
+                                                                                        "listMsg" : [], 
+                                                                                        "members" : groups[data["groupName"]]["members"]
+                                                                                        }
+                                                                                       }
+                                    }
+                await websocket.send(json.dumps(responseData))
+
+            if data["type"] == "joinGroup":
+                if groups[data["groupName"]]["password"] != data["groupPassword"]:
+                    responseData = {"type" : "joinGroup", "status" : False, "data" : None} 
+                else:
+                    groupName = data["groupName"]
+                    listMsg = joinGroup(groupName, data["groupPassword"], data["username"])
+                    responseData = {"type" : "joinGroup", "status" : True, "data" : {groupName : 
+                                                                                       {"groupDes" : groups[groupName]["groupDes"], 
+                                                                                        "listMsg" :listMsg, 
+                                                                                        "members" : groups[groupName]["members"]
+                                                                                        }
+                                                                                       }
+                                    }
+                await websocket.send(json.dumps(responseData)) 
 
     except websockets.exceptions.ConnectionClosed:
         print(f"{username} disconnected.")    
@@ -173,7 +228,7 @@ async def start_server():
     try:
         loadUserData()
         loadGroup()
-        async with websockets.serve(handleClient, "26.253.176.29", 5555):
+        async with websockets.serve(handleClient, "103.20.97.88", 5555):
             print('Websockets Server Started')
             await asyncio.Future()
     finally:

@@ -282,4 +282,9 @@ class ChatWidget(QWidget):
         self.model.switchDataset(which)
         self.view.scrollToBottom()
 
+    def addGroup(self, data):
+        for groupName in data.keys():
+            if groupName not in self.model.dictMessages:
+                self.model.dictMessages[groupName] = self.model._convertListToInternal(data[groupName]["listMsg"])
+                
 

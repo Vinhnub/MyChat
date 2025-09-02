@@ -187,6 +187,8 @@ class ChatWindow(QWidget):
         self.callBtn.setFixedHeight(42)
         
         self.logoutBtn.clicked.connect(self.logout)
+        self.createGroupBtn.clicked.connect(self.createGroup)
+        self.joinGroupBtn.clicked.connect(self.joinGroup)
 
         self.chatLayout = QHBoxLayout()
         self.chatLayout.addWidget(self.listGroup)
@@ -212,7 +214,7 @@ class ChatWindow(QWidget):
 
     def recvMessage(self, msg):
         self.chatWidget.recvMessage(msg)
-        self.listGroup.moveToTop(msg["groupName"], msg["mesContent"])
+        self.listGroup.moveToTop(msg["groupName"], msg["mesContent"], self.data["data"]["username"] == msg["userName"])
 
     def logout(self):
         ret = QMessageBox.question(self,"Log out",
@@ -220,6 +222,20 @@ class ChatWindow(QWidget):
                                         QMessageBox.Yes | QMessageBox.No)
         if ret == QMessageBox.Yes : 
             self.main.logout(self.data["data"]["username"])
+
+    def createGroup(self):
+        self.main.secondWindow = CreateGroupWindow(self.app, self.main, self.data["data"]["username"])
+        self.main.secondWindow.show()
+
+    def joinGroup(self):
+        self.main.secondWindow = JoinGroupWindow(self.app, self.main, self.data["data"]["username"])
+        self.main.secondWindow.show()
+
+    def addGroup(self, data):
+        groupName = next(iter(data))
+        self.data["data"]["groups"][groupName] = data[groupName] 
+        self.chatWidget.addGroup(data)
+        self.listGroup.addGroup(data)
 
     def switchCurrentGroup(self, groupName):
         self.currentGroup.switchGroup(self.data["data"]["groups"][groupName]["groupDes"])
@@ -231,8 +247,118 @@ class ChatWindow(QWidget):
         self.listMember = ListMemberWidget(self, self.data["data"]["groups"][groupName]["members"])
         self.chatLayout.insertWidget(index, self.listMember)
 
-class CreateGroupWindow():
+class CreateGroupWindow(QWidget):
+    def __init__(self, app, main, myName):
+        super().__init__()
+        self.app = app
+        self.main = main
+        self.myName = myName
+        self.setWindowTitle("Create group")
+
+        label = QLabel("Create group")
+        label.setFont(QFont('Arial', 16))
+        label.setAlignment(Qt.AlignCenter)
+
+        entryLayout = QFormLayout()
+        self.groupDes = QLineEdit()
+        self.groupName = QLineEdit()
+        self.groupPassword = QLineEdit()
+        groupDesLabel = QLabel("Group des:")
+        groupNameLabel = QLabel("Group name:")
+        groupPasswordLabel = QLabel("Password:")
+        groupDesLabel.setFont(QFont('Arial', 10))
+        groupNameLabel.setFont(QFont('Arial', 10))
+        groupPasswordLabel.setFont(QFont('Arial', 10))
+        entryLayout.addRow(groupDesLabel, self.groupDes)
+        entryLayout.addRow(groupNameLabel, self.groupName)
+        entryLayout.addRow(groupPasswordLabel, self.groupPassword)
+        
+        btnLayout = QHBoxLayout()
+        enterBtn = QPushButton("Enter")
+        cancelBtn = QPushButton("Cancel")
+        enterBtn.setFont(QFont('Arial', 10))
+        cancelBtn.setFont(QFont('Arial', 10))
+
+        enterBtn.clicked.connect(self.enterClicked)
+        cancelBtn.clicked.connect(self.cancelClicked)
+        btnLayout.addWidget(cancelBtn)
+        btnLayout.addWidget(enterBtn)
+
+        layout = QVBoxLayout()
+        layout.addWidget(label)
+        layout.addLayout(entryLayout)
+        layout.addLayout(btnLayout)
+        
+        self.setLayout(layout)
+
+    def cancelClicked(self):
+        self.main.secondWindow = None
+
+    def enterClicked(self):
+        if self.groupDes.text() == "" or self.groupName.text() == "" or self.groupPassword.text() == "":
+            return 
+        self.main.createGroup(self.groupDes.text(), self.groupName.text(), self.groupPassword.text(), self.myName)
+
+    def showError(self):
+        ret = QMessageBox.critical(self,"Error", "Group name already exists!", QMessageBox.Ok)
+        if ret == QMessageBox.Ok:
+            pass
+            
+    def showSuccess(self):
+        ret = QMessageBox.information(self, "Success", "Create group successfuly", QMessageBox.Ok)
+        if ret == QMessageBox.Ok:
+            self.close()
     pass
 
-class JoinGroupWindow():
-    pass
+class JoinGroupWindow(QWidget):
+    def __init__(self, app, main, myName):
+        super().__init__()
+        self.app = app
+        self.main = main
+        self.myName = myName
+        self.setWindowTitle("Join group")
+
+        label = QLabel("Join group")
+        label.setFont(QFont('Arial', 16))
+        label.setAlignment(Qt.AlignCenter)
+
+        entryLayout = QFormLayout()
+        self.groupNameEntry = QLineEdit()
+        self.passwordEntry = QLineEdit()
+        groupNameLabel = QLabel("Group name:")
+        passwordLabel = QLabel("Password:")
+        groupNameLabel.setFont(QFont('Arial', 10))
+        passwordLabel.setFont(QFont('Arial', 10))
+        entryLayout.addRow(groupNameLabel, self.groupNameEntry)
+        entryLayout.addRow(passwordLabel, self.passwordEntry)
+        
+        btnLayout = QHBoxLayout()
+        enterBtn = QPushButton("Enter")
+        cancelBtn = QPushButton("Cancel")
+        enterBtn.setFont(QFont('Arial', 10))
+        cancelBtn.setFont(QFont('Arial', 10))
+
+        enterBtn.clicked.connect(self.enterClicked)
+        cancelBtn.clicked.connect(self.cancelClicked)
+        btnLayout.addWidget(cancelBtn)
+        btnLayout.addWidget(enterBtn)
+
+        layout = QVBoxLayout()
+        layout.addWidget(label)
+        layout.addLayout(entryLayout)
+        layout.addLayout(btnLayout)
+        
+        self.setLayout(layout)
+
+    def cancelClicked(self):
+        self.close()
+
+    def enterClicked(self):
+        if self.groupNameEntry.text() == "" or self.passwordEntry.text() == "":
+            return
+        self.main.joinGroup(self.groupNameEntry.text(), self.passwordEntry.text(), self.myName)
+
+    def showError(self):
+        ret = QMessageBox.critical(self,"Error", "Something is wrong!", QMessageBox.Ok)
+        if ret == QMessageBox.Ok:
+            pass

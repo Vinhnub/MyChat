@@ -38,6 +38,12 @@ class Main():
         
         elif data["type"] == "logout":
             self.handleLogoutResult(data)
+
+        elif data["type"] == "createGroup":
+            self.handleCreateGroupResult(data)
+
+        elif data["type"] == "joinGroup":
+            self.handleJoinGroupResult(data)
             
     def handleSignUpResult(self, success):
         if self.secondWindow is not None:
@@ -69,6 +75,20 @@ class Main():
             self.mainWindow.show()
             self.user = None
 
+    def handleCreateGroupResult(self, data):
+        if data["status"]:
+            self.secondWindow.showSuccess()
+            self.mainWindow.addGroup(data["data"])
+        else:
+            self.secondWindow.showError()
+
+    def handleJoinGroupResult(self, data):
+        if data["status"]:
+            self.secondWindow.close()
+            self.mainWindow.addGroup(data["data"])
+        else:
+            self.secondWindow.showError() 
+
     def signIn(self, username, password):
         data = {"type" : "signIn", "username" : username, "password" : password}
         self.addDataToQueue(data)
@@ -85,12 +105,19 @@ class Main():
         data = {"type" : "logout", "username" : username}
         self.addDataToQueue(data)
 
+    def createGroup(self, groupDes, groupName, groupPassword, myname):
+        data = {"type" : "createGroup", "groupDes" : groupDes, "groupName" : groupName, "groupPassword" : groupPassword, "username" : myname}
+        self.addDataToQueue(data)
+
+    def joinGroup(self, groupName, groupPassword, myName):
+        data = {"type" : "joinGroup", "groupName" : groupName, "groupPassword" : groupPassword, "username" : myName}
+        self.addDataToQueue(data)
+
     def addDataToQueue(self, data):
         asyncio.run_coroutine_threadsafe(self.dataSendQueue.put(data), self.loop)
 
     def show(self):
         self.mainWindow.show()
-
 
     async def send(self, websocket):
         while True:

@@ -23,7 +23,7 @@ for row in cur.fetchall():
     print(row)
 
 
-# cur.execute("delete from GroupChat")
+# cur.execute("delete from Message")
 # conn.commit()
 
 users = [
