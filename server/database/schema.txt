@@ -28,11 +28,7 @@ CREATE TABLE Message (
 CREATE TABLE MemberOf (
     userName TEXT,
     groupName TEXT,
-    role TEXT,
-    joinAt TEXT,
-    lastReadMessageID INTEGER,
     PRIMARY KEY (userName, groupName),
     FOREIGN KEY (userName) REFERENCES User(userName),
-    FOREIGN KEY (groupName) REFERENCES GroupChat(groupName),
-    FOREIGN KEY (lastReadMessageID) REFERENCES Message(mesID)
+    FOREIGN KEY (groupName) REFERENCES GroupChat(groupName)
 );

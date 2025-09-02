@@ -43,16 +43,17 @@ class ListGroups(QWidget):
     
     def onItemClicked(self, item):
         widget = self.listWidget.itemWidget(item)
-        self._window.chatWidget.switchDataset(widget.name)
+        groupName = widget.name
+        self._window.chatWidget.switchDataset(groupName)
+        self._window.switchCurrentGroup(groupName)
+        self._window.switchListMember(groupName)
 
-    def moveToTop(self, groupName):
+    def moveToTop(self, groupName, mesContent):
         item, widget = self.dictGroups[groupName]
         row = self.listWidget.row(item)
-        if row <= 0:
-            return
         
         name = widget.name
-        lastMsg = widget.lastMsg
+        lastMsg = mesContent
         
         taken = self.listWidget.takeItem(row)  
 

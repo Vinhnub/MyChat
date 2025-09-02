@@ -53,7 +53,7 @@ class ChatModel(QAbstractListModel):
         return out
 
     def currentMessages(self):
-        return self.dictMessages[self.currentGroup]
+        return self.dictMessages[self.currentGroup] if self.currentGroup else None
 
     def data(self, index, role):
         if role == Qt.DisplayRole:
@@ -259,7 +259,7 @@ class ChatWidget(QWidget):
 
     def sendMessage(self):
         text = self.input.text().strip()
-        if text != "":
+        if text != "" and self.model.currentGroup is not None:
             nowDate = datetime.now()
             date_iso = nowDate.strftime("%Y/%m/%d %H:%M")
             msg = {

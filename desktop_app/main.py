@@ -4,6 +4,7 @@ import websockets
 import json
 import threading
 from PySide6.QtCore import QObject, Signal
+from user import *
 
 class Signals(QObject):
     callGui = Signal(object)
@@ -34,6 +35,9 @@ class Main():
         
         elif data["type"] == "recvMessage":
             self.handleRecvMessage(data)
+        
+        elif data["type"] == "logout":
+            self.handleLogoutResult(data)
             
     def handleSignUpResult(self, success):
         if self.secondWindow is not None:
@@ -51,11 +55,19 @@ class Main():
             for groupName in data["data"]["groups"].keys():
                 dataFilter[groupName] = data["data"]["groups"][groupName]["listMsg"]
             print(dataFilter)
-            self.mainWindow = ChatWindow(self.app, self, dataFilter, data["data"]["username"])
+            self.user = User(data["data"]["username"], data["data"]["userFullName"], dataFilter)
+            self.mainWindow = ChatWindow(self.app, self, data, dataFilter)
             self.mainWindow.show()
 
     def handleRecvMessage(self, data):
         self.mainWindow.recvMessage(data["message"])
+
+    def handleLogoutResult(self, data):
+        if data["status"]:
+            self.mainWindow.close()
+            self.mainWindow = StartWindow(self.app, self)
+            self.mainWindow.show()
+            self.user = None
 
     def signIn(self, username, password):
         data = {"type" : "signIn", "username" : username, "password" : password}
@@ -67,6 +79,10 @@ class Main():
 
     def sendMessage(self, msg):
         data = {"type" : "sendMessage", "message" : msg}
+        self.addDataToQueue(data)
+
+    def logout(self, username):
+        data = {"type" : "logout", "username" : username}
         self.addDataToQueue(data)
 
     def addDataToQueue(self, data):
@@ -102,4 +118,4 @@ class Main():
                 async with websockets.connect("ws://26.253.176.29:5555") as websocket:
                     await asyncio.gather(self.send(websocket), self.recieve(websocket))
             except:
-                await asyncio.sleep(5)  
+                await asyncio.sleep(1)  

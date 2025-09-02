@@ -1,52 +1,88 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Chat Client</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Chat Online</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="container">
-    
-    <!-- Welcome Screen -->
-    <div id="welcome">
-      <h2>Welcome</h2>
-      <button onclick="showLogin()">Login</button>
-      <button onclick="showRegister()">Register</button>
+  <div id="auth-wrapper" class="card">
+    <div class="tabs">
+      <button id="tab-signin" class="tab active">Sign In</button>
+      <button id="tab-signup" class="tab">Sign Up</button>
     </div>
 
-    <!-- Login Form -->
-    <div id="loginForm" class="auth-form">
-      <h2>Login</h2>
-      <input type="text" id="login-username" placeholder="Username">
-      <input type="password" id="login-password" placeholder="Password">
-      <button onclick="signIn()">Login</button>
-      <p class="switch" onclick="showRegister()">Don't have an account? Register</p>
-      <p id="login-status"></p>
-    </div>
-
-    <!-- Register Form -->
-    <div id="registerForm" class="auth-form">
-      <h2>Register</h2>
-      <input type="text" id="reg-fullname" placeholder="Full name">
-      <input type="text" id="reg-username" placeholder="Username">
-      <input type="password" id="reg-password" placeholder="Password">
-      <button onclick="signUp()">Register</button>
-      <p class="switch" onclick="showLogin()">Already have an account? Login</p>
-      <p id="register-status"></p>
-    </div>
-
-    <!-- Chat Area -->
-    <div id="chat">
-      <h2>Chat Room</h2>
-      <div id="messages"></div>
-      <div class="msg-box">
-        <input type="text" id="msgInput" placeholder="Type a message...">
-        <button onclick="sendMessage()">Send</button>
+    <form id="form-signin" class="form active" autocomplete="off">
+      <div class="field">
+        <label>Username</label>
+        <input id="signin-username" type="text" required />
       </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="signin-password" type="password" required />
+      </div>
+      <button type="submit" class="btn primary">Sign In</button>
+      <div id="signin-msg" class="msg"></div>
+    </form>
+
+    <form id="form-signup" class="form" autocomplete="off">
+      <div class="field">
+        <label>Full name</label>
+        <input id="signup-fullname" type="text" required />
+      </div>
+      <div class="field">
+        <label>Username</label>
+        <input id="signup-username" type="text" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="signup-password" type="password" required />
+      </div>
+      <button type="submit" class="btn">Create account</button>
+      <div id="signup-msg" class="msg"></div>
+    </form>
+  </div>
+
+  <div id="app" class="app hidden">
+    <header class="app-header">
+      <div class="me">
+        <div class="me-name" id="me-fullname">—</div>
+        <div class="me-username" id="me-username">@—</div>
+      </div>
+      <div class="actions">
+        <button id="btn-logout" class="btn danger">Logout</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div class="section-title">Groups</div>
+          <ul id="group-list" class="group-list"></ul>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="section-title">Members</div>
+          <ul id="member-list" class="member-list"></ul>
+        </div>
+      </aside>
+
+      <main class="chat">
+        <div id="chat-header" class="chat-header">
+          <div id="current-group-name">—</div>
+        </div>
+
+        <div id="messages" class="messages"></div>
+
+        <form id="message-form" class="message-form">
+          <input id="message-input" type="text" placeholder="Type a message..." autocomplete="off" />
+          <button class="btn primary" type="submit">Send</button>
+        </form>
+      </main>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>

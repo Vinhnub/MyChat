@@ -72,15 +72,15 @@ def loadDataFor(username, websocket):
     userFullName = userRow[0]
 
     cur.execute("""
-        SELECT groupName, lastReadMessageID 
-        FROM MemberOf 
+        SELECT M.groupName, groupDes
+        FROM MemberOf M INNER JOIN GroupChat G ON M.GroupName = G.GroupName
         WHERE userName=?
     """, (username,))
     groupsRows = cur.fetchall()
 
     groupsDict = {}
 
-    for groupName, lastReadMessageID in groupsRows:
+    for groupName, groupDes in groupsRows:
         cur.execute("""
             SELECT mesID, mesContent, date, userName 
             FROM Message
@@ -95,9 +95,9 @@ def loadDataFor(username, websocket):
         ]
 
         groupsDict[groupName] = {
+            "groupDes" : groupDes,
             "listMsg": listMsg,
             "members" : groups[groupName]["members"],
-            "lastReadMessageID": lastReadMessageID
         }
 
     if username not in userOnline:
@@ -128,33 +128,38 @@ async def handleClient(websocket):
             if data["type"] == "signUp":
                 if data["username"] in userData:
                     responseData = {"type" : "signUp", "status" : False}
-                    await websocket.send(json.dumps(responseData))
                 else:
                     register(data["fullname"], data["username"], data["password"])
                     responseData = {"type" : "signUp", "status" : True}
-                    await websocket.send(json.dumps(responseData))
+                await websocket.send(json.dumps(responseData))
 
             if data["type"] == "signIn":
                 if data["username"] in userOnline:
                     responseData = {"type" : "signIn", "status" : "error", "data" : None} # error happen when user already online and someone try to login
-                    await websocket.send(json.dumps(responseData))
                 elif userData[data["username"]] != data["password"]:
                     responseData = {"type" : "signIn", "status" : False, "data" : None} 
-                    await websocket.send(json.dumps(responseData))
                 else:
                     username = data["username"]
                     dataOfUser = loadDataFor(data["username"], websocket)
                     responseData = {"type" : "signIn", "status" : True, "data" : dataOfUser}
-                    await websocket.send(json.dumps(responseData)) 
+                await websocket.send(json.dumps(responseData)) 
             
             if data["type"] == "sendMessage":
                 updateMessageDB(data["message"])
                 responseData = {"type" : "recvMessage", "message" : data["message"]}
                 for mem in groups[data["message"]["groupName"]]["members"]:
                     if mem[0] in userOnline:
-                        print(mem[0])
                         await userOnline[mem[0]]["ws"].send(json.dumps(responseData))
-                    
+
+            if data["type"] == "logout":
+                if data["username"] in userOnline:
+                    responseData = {"type" : "logout", "status" : True}
+                    print(f"{data["username"]} log out.")   
+                    del userOnline[data["username"]]
+                else:
+                    responseData = {"type" : "logout", "status" : False}
+                await websocket.send(json.dumps(responseData))
+                
 
     except websockets.exceptions.ConnectionClosed:
         print(f"{username} disconnected.")    

@@ -6,6 +6,9 @@ from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
 from chat_model import *
 from list_group import *
+from current_group_widget import *
+from user_profile import *
+from list_member import *
 
 class StartWindow(QWidget):
     def __init__(self, app, main):
@@ -162,31 +165,44 @@ class SignUpWindow(QWidget):
 
 
 class ChatWindow(QWidget):
-    def __init__(self, app, main, data, myName):
+    def __init__(self, app, main, data, dataFilter):
         super().__init__()
-
         self.setWindowTitle("My Chat")
         self.setFixedHeight(700)
-
+        self.data = data
         self.app = app
         self.main = main
-        self.chatWidget = ChatWidget(self, data, myName)
-        self.listGroup = ListGroups(self, data)
+        self.chatWidget = ChatWidget(self, dataFilter, data["data"]["username"])
+        self.listGroup = ListGroups(self, dataFilter)
         self.createGroupBtn = QPushButton("Create group")
         self.joinGroupBtn = QPushButton("Join group")
         self.logoutBtn = QPushButton("Log out")
-        label = QLabel("My Chat")
+        self.userProfile = UserProfileWidget(data["data"]["userFullName"])
+        indexGroup = next(iter(dataFilter)) if dataFilter else ""
+        self.currentGroup = CurrentGroupWidget(data["data"]["groups"][indexGroup]["groupDes"])
+        self.listMember = ListMemberWidget(self, data["data"]["groups"][indexGroup]["members"] if indexGroup != "" else None)
+        self.callBtn = QPushButton("Call")
 
-        chatLayout = QHBoxLayout()
-        chatLayout.addWidget(self.listGroup)
-        chatLayout.addWidget(self.chatWidget)
+        self.callBtn.setFixedWidth(250)
+        self.callBtn.setFixedHeight(42)
+        
+        self.logoutBtn.clicked.connect(self.logout)
+
+        self.chatLayout = QHBoxLayout()
+        self.chatLayout.addWidget(self.listGroup)
+        self.chatLayout.addWidget(self.chatWidget)
+        self.chatLayout.addWidget(self.listMember)
         buttonLayout = QHBoxLayout()
         buttonLayout.addWidget(self.createGroupBtn)
         buttonLayout.addWidget(self.joinGroupBtn)
         buttonLayout.addWidget(self.logoutBtn)
+        infoLayout = QHBoxLayout()
+        infoLayout.addWidget(self.userProfile)
+        infoLayout.addWidget(self.currentGroup)
+        infoLayout.addWidget(self.callBtn)
         layout = QVBoxLayout()
-        layout.addWidget(label)
-        layout.addLayout(chatLayout)
+        layout.addLayout(infoLayout)
+        layout.addLayout(self.chatLayout)
         layout.addLayout(buttonLayout)
         
         self.setLayout(layout)
@@ -196,4 +212,27 @@ class ChatWindow(QWidget):
 
     def recvMessage(self, msg):
         self.chatWidget.recvMessage(msg)
-        self.listGroup.moveToTop(msg["groupName"])
+        self.listGroup.moveToTop(msg["groupName"], msg["mesContent"])
+
+    def logout(self):
+        ret = QMessageBox.question(self,"Log out",
+                                        "Log out?",
+                                        QMessageBox.Yes | QMessageBox.No)
+        if ret == QMessageBox.Yes : 
+            self.main.logout(self.data["data"]["username"])
+
+    def switchCurrentGroup(self, groupName):
+        self.currentGroup.switchGroup(self.data["data"]["groups"][groupName]["groupDes"])
+
+    def switchListMember(self, groupName):
+        index = self.chatLayout.indexOf(self.listMember)
+        self.chatLayout.removeWidget(self.listMember)
+        self.listMember.deleteLater()
+        self.listMember = ListMemberWidget(self, self.data["data"]["groups"][groupName]["members"])
+        self.chatLayout.insertWidget(index, self.listMember)
+
+class CreateGroupWindow():
+    pass
+
+class JoinGroupWindow():
+    pass
