@@ -179,7 +179,7 @@ class ChatWindow(QWidget):
         self.logoutBtn = QPushButton("Log out")
         self.userProfile = UserProfileWidget(data["data"]["userFullName"])
         indexGroup = next(iter(dataFilter)) if dataFilter else ""
-        self.currentGroup = CurrentGroupWidget(data["data"]["groups"][indexGroup]["groupDes"])
+        self.currentGroup = CurrentGroupWidget(data["data"]["groups"][indexGroup]["groupDes"] if indexGroup != "" else "")
         self.listMember = ListMemberWidget(self, data["data"]["groups"][indexGroup]["members"] if indexGroup != "" else None)
         self.callBtn = QPushButton("Call")
 
