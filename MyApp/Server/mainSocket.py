@@ -9,21 +9,52 @@ path = r"C:\Users\Lenovo\Desktop\MyChat\mydatabaseproject.db"
 print("SERVER SIDE")
 print("server:", HOST, SERVER_PORT)
 print("Waiting for client")
-
-async def broadcast(msg, senderName, senderConn, recv=None):
+def createGroup(connDB,cursor, admin, name, list):
+    cursor.execute("SELECT EXISTS(SELECT 1 FROM chat_group WHERE g_name=?)", (name,))
+    exists = cursor.fetchone()[0]
+    if exists == 1:
+        mess = {"action": CREATEGROUP, "result": "Groupname exits!"}
+    else:
+        cursor.execute("INSERT INTO chat_group (g_name) VALUES (?)", (name,))
+        connDB.commit()
+        g_id = cursor.execute("select g_id from chat_group where g_name=?",(name,)).fetchone()[0]
+        for i in list:
+            if i == admin:
+                id = cursor.execute("select id from account where name=?",(admin,)).fetchone()[0]
+                cursor.execute("INSERT INTO group_member (g_id,id,role,status) VALUES (?,?,?,?)", (g_id,id,"admin","member"))
+            else:
+                id = cursor.execute("select id from account where name=?",(i,))
+                cursor.execute("INSERT INTO group_member (g_id,id,role,status) VALUES (?,?,?,?)", (g_id,id,"member","member"))
+        connDB.commit()
+        mess = {"action": CREATEGROUP, "result": "CreateGroup successfully"}
+    jsonStr = json.dumps(mess)
+    print(mess)
+    return jsonStr
+async def broadcast(cursor,msg, senderName, senderConn, recv=None,group=None):
     recvName = recv
     removeWs = []
     fullMsg = {"action": "message", "sender": senderName, "msg": msg}
-    if recvName is None:
+    if recvName is None and not group:
         for c in list(clients.keys()):
             if c != senderConn:
                 try:
                     await c.send(json.dumps(fullMsg) + "\n")
                 except:
                     removeWs.append(c)
-        for ws in removeWs:
-            await ws.close()
-            del clients[ws]
+    elif group is not None:
+        msg = f"{senderName}: {msg}"
+        fullMsg = {"action": GROUPCHAT, "msg":msg,"group": group}
+        member = cursor.execute("select name from account a join group_member  g on a.id = g.id join chat_group c on c.g_id = g.g_id  where g_name=? ",(group,)).fetchall()
+        listmember = []
+        for i in member:
+            listmember.append(i[0])
+        for c in list(clients.keys()):
+            if c!= senderConn and clients[c] in listmember:
+                try:
+                    await c.send(json.dumps(fullMsg) + "\n")
+                except:
+                    removeWs.append(c)
+                    print("error group chat")
     else:
         fullMsg = {"action": PRIVATECHAT, "sender": senderName, "msg": msg}
         for c in list(clients.keys()):
@@ -31,7 +62,11 @@ async def broadcast(msg, senderName, senderConn, recv=None):
                 try:
                     await c.send(json.dumps(fullMsg) + "\n")
                 except:
+                    removeWs.append(c)
                     print("error privite chat")
+    for ws in removeWs:
+        await ws.close()
+        del clients[ws]
 
 def serverLogin(ws, msg,cursor):
     #recv account from client
@@ -89,12 +124,39 @@ def serverSearch(name,cursor):
 
 def serverShowFriend(name, cursor):
     friends = []
+    groups = []
+
     id1 = cursor.execute("Select id from account where name=?", (name,)).fetchone()[0]
-    idfriends = cursor.execute("Select id2 from status where id1 = ? and status=?",(id1, "friend")).fetchall()
+    idfriends = cursor.execute("""
+                                    SELECT CASE 
+                                            WHEN id1 = ? THEN id2
+                                            ELSE id1
+                                        END AS friend_id
+                                    FROM status
+                                    WHERE (id1 = ? OR id2 = ?)
+                                    AND status = 'friend'
+                                """, (id1, id1, id1)).fetchall()
     for id in idfriends:
         friends.append(cursor.execute("SELECT name FROM account where id=?", (id[0],)).fetchone()[0])
     print(friends)
-    fullmess = {"action": SHOWFRIEND, "mess": friends}
+
+    idGroups = cursor.execute("SELECT g_id from group_member where id=? AND status=?",(id1,"member")).fetchall()
+    for id in idGroups:
+        groups.append(cursor.execute("SELECT g_name FROM chat_group where g_id=?", (id[0],)).fetchone()[0])
+    print(groups)
+
+    fullmess = {"action": SHOWFRIEND, "friends": friends, "groups": groups}
+    jsonStr = json.dumps(fullmess)
+    return jsonStr
+
+def checkstatus(friends):
+    onlFriends = []
+    for f in friends:
+        for i in clients.keys():
+            if clients[i] == f:
+                onlFriends.append(f)
+    print(f"onlFriend {onlFriends}")
+    fullmess = {"action": CHECKSTATUS, "listfriendonl": onlFriends}
     jsonStr = json.dumps(fullmess)
     return jsonStr
 
@@ -162,8 +224,16 @@ async def handleClient(ws):
                 res = serverRequest(msg, cursor)
                 connDB.commit()
             elif action == PRIVATECHAT:
-                await broadcast(msg.get("msg"), clients.get(ws), ws, msg.get("recv"))
+                await broadcast(cursor,msg.get("msg"), clients.get(ws), ws, recv = msg.get("recv"))
                 continue
+            elif action == GROUPCHAT:
+                await broadcast(cursor,msg.get("msg"),clients.get(ws),ws, group = msg.get("group"))
+                continue
+            elif action == CHECKSTATUS:
+                res = checkstatus(msg.get("friends"))
+
+            elif action == CREATEGROUP:
+                res = createGroup(connDB,cursor, msg.get("admin"), msg.get("nameGroup"), msg.get("listAdd"))
             else:
                 if msg.get("msg") == "x":
                     break

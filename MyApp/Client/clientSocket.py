@@ -10,9 +10,12 @@ class ClientChat(QObject):
     loginMessage = Signal(str)
     signUpMessage = Signal(str)
     optionMessage = Signal(str)
-    showFriendMessage = Signal(list)
-    priviteChatMessage = Signal(str, str)
-    
+    showFriendMessage = Signal(list,list)
+    priviteChatMessage = Signal(str, str, str)
+    updateStatusMessage = Signal(list)
+    updateLastMessage = Signal(str, str,str)
+    groupChatMessage = Signal(str,str,str)
+    createGroupMessage = Signal(str)
     def __init__(self):    
         super().__init__()
         self.uri = "ws://26.198.149.7:61000" 
@@ -22,12 +25,18 @@ class ClientChat(QObject):
 
         self.validcheck = None
         self.msg = "login"
+        self.listFriendOnline = []
+        self.lock = asyncio.Lock()   # lock
+
+    async def safeSend(self, jsonStr):
+        async with self.lock:
+             await self.client.send(jsonStr)
 
     async def connect(self):
         print("connecting...")
         try:
             self.client = await websockets.connect(self.uri)
-            asyncio.create_task(self.listen_server())  # chạy song song lắng nghe
+            asyncio.create_task(self.listen_server())  # lắng nghe
         except:
             print("Cannot connect to server")
 
@@ -40,19 +49,19 @@ class ClientChat(QObject):
         self.msg = action
         fullmsg = {"action": self.msg, "account": self.username, "passw": self.psw}
         jsonStr = json.dumps(fullmsg) + "\n"
-        await self.client.send(jsonStr)
+        await self.safeSend(jsonStr)
 
     async def searchUser(self,action,name=None):
         self.msg = action
         fullmsg = {"action": self.msg, "name": name}
         jsonStr = json.dumps(fullmsg) + "\n"
-        await self.client.send(jsonStr)
+        await self.safeSend(jsonStr)
 
     async def clientShowFriend(self,action,name):
         self.msg = action
         fullmsg = {"action": self.msg, "name": name}
         jsonStr = json.dumps(fullmsg) + "\n"
-        await self.client.send(jsonStr)
+        await self.safeSend(jsonStr)
 
 #-------dung de chat va nhan tin nhan------------------
 
@@ -60,14 +69,13 @@ class ClientChat(QObject):
         self.msg = msg
         fullmsg = {"action": type, "msg": self.msg}
         jsonStr = json.dumps(fullmsg) + "\n"
-        await self.client.send(jsonStr)
+        await self.safeSend(jsonStr)
     
     async def listen_server(self):
         try:
             async for message in self.client:
                 data = json.loads(message)
                 action = data.get("action")
-
                 if action == MESSAGE:
                     msg = f"{data.get('sender')}: {data.get('msg')}"
                     self.newMessage.emit(msg)  # gửi tín hiệu về GUI
@@ -84,12 +92,29 @@ class ClientChat(QObject):
                     msg = data.get("mess")  
                     self.optionMessage.emit(msg)
                 if action == SHOWFRIEND:
-                    msg = data.get("mess")
-                    self.showFriendMessage.emit(msg)
+                    frs = data.get("friends")
+                    grs = data.get("groups")
+                    self.showFriendMessage.emit(frs, grs)
                 if action == PRIVATECHAT:
                     msg = data.get("msg")
                     sender = data.get("sender")
-                    self.priviteChatMessage.emit(msg,sender)
+                    self.priviteChatMessage.emit(msg,sender,"")
+                    self.updateLastMessage.emit(msg,sender,"")
+
+                if action == CHECKSTATUS:
+                    msg = data.get("listfriendonl")
+                    self.updateStatusMessage.emit(msg)
+
+                if action == GROUPCHAT:
+                    msg = data.get("msg")
+                    group = data.get("group")
+                    self.groupChatMessage.emit(msg,"",group)
+                    self.updateLastMessage.emit(msg,"",group)
+
+                if action == CREATEGROUP:
+                   msg = data.get("result")
+                   self.createGroupMessage.emit(msg)
+                
         except:
             print(f"Connection closed: ")
 
@@ -97,17 +122,32 @@ class ClientChat(QObject):
         self.msg = option
         fullmsg = {"action":REQUEST, "option": option, "user1": user1, "user2": user2}
         jsonStr = json.dumps(fullmsg) + "\n"
-        await self.client.send(jsonStr)
+        await self.safeSend(jsonStr)
         
     async def sendPriviteChat(self,sender,recv,msg):
         self.msg = msg
         fullmsg = {"action": PRIVATECHAT, "sender": sender, "recv": recv, "msg": self.msg}
         jsonStr = json.dumps(fullmsg) + "\n"
-        await self.client.send(jsonStr)
+        await self.safeSend(jsonStr)
 
+    async def sendGroupChat(self,sender,recv,msg):
+        self.msg = msg
+        fullmsg = {"action": GROUPCHAT, "sender": sender, "group": recv, "msg": self.msg}
+        jsonStr = json.dumps(fullmsg) + "\n"
+        await self.safeSend(jsonStr)
 
-
-
+    async def getUserOnl(self,listFriend):
+        self.msg = CHECKSTATUS
+        fullmsg = {"action": CHECKSTATUS, "friends": listFriend}
+        jsonStr = json.dumps(fullmsg) + "\n"
+        await self.safeSend(jsonStr)
+    
+    async def createGroup(self, clientName, nameGroup, listAdd):
+        self.msg = CREATEGROUP
+        fullmsg = {"action": CREATEGROUP,"admin": clientName, "nameGroup": nameGroup, "listAdd": listAdd}
+        jsonStr = json.dumps(fullmsg) + "\n"
+        await self.safeSend(jsonStr)
+     
 #    def sendList(self, list):
 #        self.client.sendall((self.msg + "\n").encode(FORMAT))
 #        data = json.dumps(list) + "\n"

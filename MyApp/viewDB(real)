@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS group_member (
     g_id INTEGER NOT NULL,
     id INTEGER NOT NULL,
     role TEXT DEFAULT 'member',
+    status TEXT NOT NULL CHECK(status IN ('invite','request','member','left')),
     PRIMARY KEY (g_id, id),
     FOREIGN KEY (g_id) REFERENCES chat_group(g_id),
     FOREIGN KEY (id) REFERENCES account(id)
@@ -42,56 +43,72 @@ CREATE TABLE IF NOT EXISTS group_member (
 """)
 
 """
-# them du lieu vao ban 
-cursor.execute("INSERT INTO account (name, passw) VALUES (?, ?)", ("quochuy30", "12345"))
-cursor.execute("INSERT INTO account (name, passw) VALUES (?, ?)", ("dungvu194", "dungvu194"))
-cursor.execute("INSERT INTO account (name, passw) VALUES (?, ?)", ("ly219", "ly219"))
-cursor.execute("INSERT INTO account (name, passw) VALUES (?, ?)", ("vu194", "vu194"))
-cursor.execute("INSERT INTO account (name, passw) VALUES (?, ?)", ("hai25", "hai25"))
-cursor.execute("INSERT INTO account (name, passw) VALUES (?, ?)", ("tran", "1234"))
+# === 1. User ===
+users = [
+    ("dung", "dung123"),
+    ("vinh", "ving123"),
+    ("ly", "ly123"),
+    ("dat", "dat123"),
+    ("tien", "tien123"),
+    ("thai", "thai123"),
+    ("vu", "vu123"),
+    ("huy", "huy123"),
+    ("trang", "trang123"),
+    ("duy", "duy123"),
+]
+cursor.executemany("INSERT INTO account (name, passw) VALUES (?, ?)", users)
 
-cursor.execute("INSERT INTO status (id1, id2, status) VALUES (?, ?, ?)", (1, 2, "invite"))
-cursor.execute("INSERT INTO status (id1, id2, status) VALUES (?, ?, ?)", (1, 3, "friend"))
-cursor.execute("INSERT INTO status (id1, id2, status) VALUES (?, ?, ?)", (2, 3, "friend"))
-cursor.execute("INSERT INTO status (id1, id2, status) VALUES (?, ?, ?)", (4, 2, "invite"))
-cursor.execute("INSERT INTO status (id1, id2, status) VALUES (?, ?, ?)", (4, 5, "friend"))
-cursor.execute("INSERT INTO status (id1, id2, status) VALUES (?, ?, ?)", (6, 5, "invite"))
+# === 2. Group chat ===
+groups = [
+    ("gaming",),
+    ("study",),
+    ("travel",),
+    ("music",),
+    ("sports",)
+]
+cursor.executemany("INSERT INTO chat_group (g_name) VALUES (?)", groups)
 
-cursor.execute("INSERT INTO chat_group (g_id, g_name) VALUES (?, ?)", (1, "kenhthegioi"))
-cursor.execute("INSERT INTO chat_group (g_id, g_name) VALUES (?, ?)", (2, "nhomlop"))
-cursor.execute("INSERT INTO chat_group (g_id, g_name) VALUES (?, ?)", (3, "nhomhocthem"))
+# === 3. Quan hệ bạn bè (mỗi user ≥ 5 bạn) ===
+friendships = [
+    (1, 2, "friend"), (1, 3, "friend"), (1, 4, "friend"), (1, 5, "friend"), (1, 6, "friend"),
+    (2, 3, "friend"), (2, 4, "friend"), (2, 7, "friend"), (2, 8, "friend"), (2, 9, "friend"),
+    (3, 5, "friend"), (3, 6, "friend"), (3, 8, "friend"), (3, 9, "friend"), (3, 10, "friend"),
+    (4, 5, "friend"), (4, 6, "friend"), (4, 7, "friend"), (4, 8, "friend"), (4, 10, "friend"),
+    (5, 6, "friend"), (5, 7, "friend"), (5, 8, "friend"), (5, 9, "friend"), (5, 10, "friend"),
+    (6, 7, "friend"), (6, 8, "friend"), (6, 9, "friend"), (6, 10, "friend"),
+    (7, 8, "friend"), (7, 9, "friend"), (7, 10, "friend"),
+    (8, 9, "friend"), (8, 10, "friend"),
+    (9, 10, "friend")
+]
+cursor.executemany("INSERT INTO status (id1, id2, status) VALUES (?, ?, ?)", friendships)
 
-# Nhóm 1: kenhthegioi
-cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (1, 1, "admin"))
-cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (1, 2, "member"))
-cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (1, 3, "member"))
+# === 4. Thành viên nhóm (có trạng thái) ===
+group_members = [
+    # Group 1: gaming
+    (1, 1, "admin", "member"), (1, 2, "member", "member"), (1, 3, "member", "member"),
+    (1, 4, "member", "invite"), (1, 5, "member", "request"), (1, 6, "member", "member"),
 
-# Nhóm 2: nhomlop
-cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (2, 2, "admin"))
-cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (2, 4, "member"))
-cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (2, 5, "member"))
+    # Group 2: study
+    (2, 2, "admin", "member"), (2, 3, "member", "member"), (2, 7, "member", "member"),
+    (2, 8, "member", "request"), (2, 9, "member", "member"),
 
-# Nhóm 3: nhomhocthem
-cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (3, 3, "admin"))
-cursor.execute("INSERT INTO group_member (g_id, id, role) VALUES (?, ?, ?)", (3, 6, "member"))
+    # Group 3: travel
+    (3, 3, "admin", "member"), (3, 1, "member", "member"), (3, 5, "member", "member"),
+    (3, 7, "member", "invite"), (3, 10, "member", "member"),
+
+    # Group 4: music
+    (4, 4, "admin", "member"), (4, 6, "member", "member"), (4, 8, "member", "member"),
+    (4, 9, "member", "invite"), (4, 10, "member", "member"),
+
+    # Group 5: sports
+    (5, 5, "admin", "member"), (5, 2, "member", "member"), (5, 6, "member", "member"),
+    (5, 7, "member", "request"), (5, 9, "member", "member"), (5, 10, "member", "member"),
+]
+cursor.executemany("INSERT INTO group_member (g_id, id, role, status) VALUES (?, ?, ?, ?)", group_members)
 """
 
-cursor.execute("INSERT INTO status (id1, id2, status) VALUES (?, ?, ?)", (3, 2, "friend"))
-
-cursor.execute("SELECT * FROM account")
-for row in cursor.fetchall():
+cursor.execute("select * from chat_group") 
+for row in cursor:
     print(row)
-cursor.execute("SELECT * FROM chat_group")
-for row in cursor.fetchall():
-    print(row)
-cursor.execute("SELECT * FROM group_member")
-for row in cursor.fetchall():
-    print(row)
-
-cursor.execute("SELECT * FROM status")
-for row in cursor.fetchall():
-    print(row)
-#cursor.execute("DROP TABLE status")
-# Lưu thay đổi
 conn.commit()
 conn.close()

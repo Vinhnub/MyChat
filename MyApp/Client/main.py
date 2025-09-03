@@ -15,6 +15,8 @@ class MainWindow(QWidget):
         self.stack = QStackedWidget()
         self.setWindowTitle("MyChat")
 
+        self.resize(450, 500) 
+
         self.w1 = WidgetLogin(self.app, self.client, self.stack)
         self.w2 = ChatWindow(self.app, self.client, stack=self.stack)
         self.w3 = Profile(self.app, self.client, self.stack)

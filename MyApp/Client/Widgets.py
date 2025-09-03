@@ -1,9 +1,70 @@
 from PySide6.QtWidgets import QMainWindow, QListWidget, QSplitter, QComboBox, QTabWidget, QAbstractItemView, QListWidget, QRadioButton, QButtonGroup, QCheckBox,QGroupBox,QGridLayout, QSizePolicy, QTextEdit, QLineEdit, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox, QLabel
 from clientSocket import *
-from PySide6.QtWidgets import QStatusBar, QToolBar, QDialog, QApplication, QWidget, QVBoxLayout, QListView, QLineEdit, QPushButton, QStyledItemDelegate
+from PySide6.QtWidgets import QStackedWidget, QListWidgetItem, QStatusBar, QToolBar, QDialog, QApplication, QWidget, QVBoxLayout, QListView, QLineEdit, QPushButton, QStyledItemDelegate
 from PySide6.QtCore import  Qt, QAbstractListModel, QModelIndex, QRect, QSize, QPoint, Signal, QObject
 from PySide6.QtGui import  QAction, QPainter, QColor, QFont, QIcon, QPixmap
 from datetime import datetime
+
+class WidgetCreateGroup(QDialog):
+    def __init__(self, client, clientname):
+        super().__init__()
+        self.setWindowTitle("Create Group")
+        self.userAdded = []
+        self.name = ""
+        self.client = client
+        self.clientName = clientname
+
+        self.client.searchMessage.connect(self.showAllUser)
+        self.client.createGroupMessage.connect(self.showResult)
+
+        labelGroupN = QLabel("Group Name:")
+        self.lineGroupN = QLineEdit()
+        self.okButton = QPushButton("oke")
+        self.okButton.clicked.connect(self.showAllUserFunction)
+
+        layoutNH = QHBoxLayout()
+        layoutNH.addWidget(labelGroupN)
+        layoutNH.addWidget(self.lineGroupN)
+        layoutNH.addWidget(self.okButton)
+
+        self.listWidget = QListWidget(self)
+        self.listWidget.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.listWidget.itemClicked.connect(self.saveSelection)
+        
+        self.createBtn = QPushButton("Create")
+        self.createBtn.clicked.connect(self.createGroup)
+        
+        vlayout = QVBoxLayout()
+        vlayout.addLayout(layoutNH)
+        vlayout.addWidget(self.listWidget)
+        vlayout.addWidget(self.createBtn)
+        self.setLayout(vlayout)
+
+    def saveSelection(self, item):
+        if item.text() in self.userAdded:
+            self.userAdded.remove(item.text())
+        else:
+            self.userAdded.append(item.text())
+
+    def createGroup(self):
+        asyncio.create_task(self.client.createGroup(self.clientName, self.name, self.userAdded))
+
+    def getNameGroup(self):
+        self.name = self.lineGroupN.text()
+
+    def showAllUserFunction(self):
+        asyncio.create_task(self.client.searchUser("Search", name=None))
+
+    def showAllUser(self, list):
+        self.listWidget.addItems(list)
+
+    def showResult(self,result):
+        if result == "CreateGroup successfully":
+           QMessageBox.information(self, "Response",result)
+        else:
+            QMessageBox.information(self, "Response",result)
+
+
 class WidgetOptionUser(QDialog):
     def __init__(self, client, clientName, namefriend):
         super().__init__()
@@ -172,6 +233,34 @@ class WidgetLogin(QWidget):
         self.dialog = WidgetSignUp(self.client)
         self.dialog.show()
 
+class WidgetSearchResult(QDialog):
+    def __init__(self,client,clientName, users):
+        super().__init__()
+        self.setWindowTitle("SearchResult")
+        self.client = client
+        self.clientName = clientName
+        self.users = users
+        self.resize(100, 150)
+        self.listWidget = QListWidget()
+        self.listWidget.addItem("Search Result")
+        for user in self.users:
+            self.listWidget.addItem(user)
+
+        self.listWidget.itemClicked.connect(self.itemClicked)
+        self.layOutV = QVBoxLayout()
+        self.layOutV.addWidget(self.listWidget)
+
+        self.setLayout(self.layOutV)
+
+
+    def itemClicked(self, item):
+        username = item.text()
+        if username == "Search Result":
+            return
+        option = WidgetOptionUser(self.client, self.clientName, username)
+        option.setModal(True) 
+        option.show() 
+
 class Profile(QMainWindow):
     def __init__(self, app, client, stack=None):
         super().__init__()
@@ -179,64 +268,69 @@ class Profile(QMainWindow):
         self.setWindowTitle("Profile")
         self.stack = stack
         self.client = client
-        self.client.searchMessage.connect(self.showSearch)
+        self.client
+#        self.client.searchMessage.connect(self.showSearch)
         self.client.showFriendMessage.connect(self.showFriend)
-        self.chatPrivite = None
+        self.client.updateStatusMessage.connect(self.updateStatus)
+        self.client.updateLastMessage.connect(self.updateNewMess)
+
+        self.dialog = None
+        self.groups = None
+        self.clicked = None
+        self.friendOnl = None
+        self.chatStack = QStackedWidget()
+        self.chats = {}
+
         self.friendName = None
         menuBar = self.menuBar()
         self.clientName = None
-        self.task = None
+        self.listFriendUser = []
 
         meMenu = menuBar.addMenu(QIcon("image/useraccount"), "&Me")
         SearchAcction = meMenu.addAction(QIcon("image/searchicon"), "Search All")
         SearchAcction.triggered.connect(self.searchFunction)
-        
-        
-        self.userSplit = QListWidget()
-        self.userSplit.hide()
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.userSplit)
-        rightWidget = QWidget()      # bọc hbox vào QWidget
-        rightWidget.setLayout(hbox)
-        
-        self.groupBoxR = QGroupBox()
-        vboxR = QVBoxLayout()
-        vboxR.addWidget(self.userSplit)
-        self.groupBoxR.setLayout(vboxR)
 
+        # --- Friend list ---
         self.friendlist = QListWidget()
-        self.friendlist.show()
-
-        rightWidget = QWidget()
-        rightLayout = QVBoxLayout()
-        rightLayout.addWidget(self.groupBoxR)
-        rightWidget.setLayout(rightLayout)
-        
-        self.groupBoxR.setFlat(True)
+        self.friendlist.setFixedWidth(150)   # fix ngang 50, cao tự giãn theo cửa sổ
 
         btnBack = QPushButton("BackToMainChat")
+        btnBack.setFixedWidth(100)
         btnBack.clicked.connect(self.backToMainChat)
 
-        groupBox = QGroupBox("Friends")
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.friendlist)
-        vbox.addWidget(btnBack)
-        groupBox.setLayout(vbox)
+        createGroup = QPushButton("createGroup")
+        createGroup.setFixedWidth(100)
+        createGroup.clicked.connect(self.createGroup)
+
+        layoutH = QHBoxLayout()
+        layoutH.addWidget(btnBack)
+        layoutH.addWidget(createGroup)
 
         leftWidget = QWidget()
         leftLayout = QVBoxLayout()
-        leftLayout.addWidget(groupBox)
+        leftLayout.addWidget(self.friendlist)
+        leftLayout.addLayout(layoutH)
         leftWidget.setLayout(leftLayout)
 
-
+        # --- Splitter chính ---
         self.layOutSplit = QSplitter(Qt.Horizontal)
         self.layOutSplit.addWidget(leftWidget)
-        self.layOutSplit.addWidget(rightWidget)
+        self.layOutSplit.addWidget(self.chatStack)
+        self.layOutSplit.setSizes([150, 600])
 
-        self.userSplit.itemClicked.connect(self.itemClicked)
+        # click item -------------------------------------
+        self.setCentralWidget(self.layOutSplit)
+
         self.friendlist.itemClicked.connect(self.connectPrivitedChat)
         # working with status bars
         #self.setStatusBar(QStatusBar(self))
+
+        self.iconOn = QPixmap("image/onlineicon").scaled(16, 16)
+        self.iconOff = QPixmap("image/offlineicon").scaled(16,16)
+        self.iconGroup = QPixmap("image/groupicon").scaled(16,16)
+#        self.onlineIcon = QIcon(iconOn)
+#        self.offlineIcon = QIcon(iconOff)
+
         self.setCentralWidget(self.layOutSplit)
 
     def setUserInfo(self, name: str):
@@ -248,47 +342,265 @@ class Profile(QMainWindow):
         meMenu = mb.addMenu(QIcon("image/useraccount"), "&Me")
         searchAction = meMenu.addAction(QIcon("image/searchicon"), "Search All")
         searchAction.triggered.connect(self.searchFunction)
-        # chỉ add menu tên khi có string hợp lệ
         if self.clientName:
-            mb.addMenu(str(self.clientName))
+            menuf5 = mb.addMenu(str(self.clientName))
+            f5Action = menuf5.addAction(QIcon("image/f5icon"), "Refresh")
+            f5Action.triggered.connect(self.getFriend)
 
+    # ---------- show search -----------
     def searchFunction(self):
         asyncio.create_task(self.client.searchUser("Search", name=None))
     
     def showSearch(self, users):
-        self.layOutSplit.setSizes([50, 150])
-        self.userSplit.clear()
-        print("Received users:", users)
-        self.userSplit.addItem("Search Result")
-        self.userSplit.addItems(users)
-        self.userSplit.show()
-        self.groupBoxR.setFlat(False)
+        self.dialog = WidgetSearchResult(self.client,self.clientName,users)
+        self.dialog.show()
+
     #----- show friend ------
     def getFriend(self):
-        self.task = asyncio.create_task(self.client.clientShowFriend("showfriend", self.clientName))
-      
-    def showFriend(self, users):
+        asyncio.create_task(self.client.clientShowFriend("showfriend", self.clientName))
+    
+    def showFriend(self, users, groups):
+        self.listFriendUser = users
+        self.groups = groups
         self.friendlist.clear()
         self.friendlist.addItems(users)
-        self.task.cancel()
-    #------------------------------
+        self.friendlist.addItem("Groups:")
+        self.friendlist.addItems(groups)
+
+        asyncio.create_task(self.client.getUserOnl(users))
+
+    def updateStatus(self,friendsOnl):   
+        self.friendlist.clear()
+        listFriendUser = self.listFriendUser
+        self.friendlist.addItem("--Friends--")  
+        self.friendOnl = friendsOnl
+        if not friendsOnl:
+            for f in listFriendUser:
+                item = QListWidgetItem()
+                widget = QWidget()
+                layout = QVBoxLayout(widget)
+                
+                labelFriend = QLabel()
+                labelFriend.setObjectName("icon")
+
+                labelLastChat = QLabel("last msg:...")
+                labelLastChat.setObjectName("lastMsg")
+
+                labelFriend.setPixmap(self.iconOff)
+                labelNameFriend = QLabel(f)
+                labelNameFriend.setObjectName("friendName")
+
+                layoutHFriend = QHBoxLayout()
+                layoutHFriend.setSpacing(2)                   
+                layoutHFriend.setContentsMargins(0, 0, 0, 0)   
+                layoutHFriend.addWidget(labelFriend)
+                layoutHFriend.addWidget(labelNameFriend)
+                
+                 
+                layout.addLayout(layoutHFriend)
+                layout.addWidget(labelLastChat)
+
+                self.friendlist.addItem(item)
+                self.friendlist.setItemWidget(item, widget)
+                
+                widget.setLayout(layout)
+                # Gắn widget vào item
+                item.setSizeHint(widget.sizeHint())  
+
+            self.friendlist.addItem("--Groups--")
+            for f in self.groups:
+                item = QListWidgetItem()
+                widget = QWidget()
+                layout = QVBoxLayout(widget)
+                
+                labelFriend = QLabel()
+                labelFriend.setObjectName("icon")
+
+                labelLastChat = QLabel("last msg:...")
+                labelLastChat.setObjectName("lastMsg")
+
+                labelFriend.setPixmap(self.iconGroup)
+                labelNameFriend = QLabel(f)
+                labelNameFriend.setObjectName("friendName")
+
+                layoutHFriend = QHBoxLayout()
+                layoutHFriend.setSpacing(2)                    
+                layoutHFriend.setContentsMargins(0, 0, 0, 0)   
+                layoutHFriend.addWidget(labelFriend)
+                layoutHFriend.addWidget(labelNameFriend)
+                
+                 
+                layout.addLayout(layoutHFriend)
+                layout.addWidget(labelLastChat)
+
+                self.friendlist.addItem(item)
+                self.friendlist.setItemWidget(item, widget)
+                
+                widget.setLayout(layout)
+                # Gắn widget vào item
+                item.setSizeHint(widget.sizeHint())
+        else:
+            for f in friendsOnl:
+                item = QListWidgetItem()
+                widget = QWidget()
+                layout = QVBoxLayout(widget)
+               
+                labelFriend = QLabel()
+                labelLastChat = QLabel("lastmsg:......")
+                labelLastChat.setObjectName("lastMsg")
+
+                labelFriend.setPixmap(self.iconOn)
+                labelFriend.setObjectName("icon")
+
+                labelNameFriend = QLabel(f)
+                labelNameFriend.setObjectName("friendName")
+
+                layoutHFriend = QHBoxLayout()
+                layoutHFriend.setSpacing(2)                
+                layoutHFriend.setContentsMargins(0, 0, 0, 0)   
+                layoutHFriend.addWidget(labelFriend)
+                layoutHFriend.addWidget(labelNameFriend)
+                layoutHFriend.setSpacing(2)
+                    
+                layout.addLayout(layoutHFriend)
+                layout.addWidget(labelLastChat)
+
+                self.friendlist.addItem(item)
+                self.friendlist.setItemWidget(item, widget)
+                widget.setLayout(layout)
+                # Gắn widget vào item
+                item.setSizeHint(widget.sizeHint())
+
+                listFriendUser.remove(f)
+
+            for f in listFriendUser:
+                item = QListWidgetItem()
+                widget = QWidget()
+                layout = QVBoxLayout(widget)
+
+                labelFriend = QLabel()
+                labelLastChat = QLabel("last msg:...")
+                labelLastChat.setObjectName("lastMsg")
+
+                labelFriend.setPixmap(self.iconOff)
+                labelFriend.setObjectName("icon")
+
+                labelNameFriend = QLabel(f)
+                labelNameFriend.setObjectName("friendName")
+
+                layoutHFriend = QHBoxLayout()
+                layoutHFriend.setSpacing(2)                    
+                layoutHFriend.setContentsMargins(0, 0, 0, 0)   
+                layoutHFriend.addWidget(labelFriend)
+                layoutHFriend.addWidget(labelNameFriend)
+                 
+                layout.addLayout(layoutHFriend)
+                layout.addWidget(labelLastChat)
+
+                self.friendlist.addItem(item)
+                self.friendlist.setItemWidget(item, widget)
+                widget.setLayout(layout)
+                # Gắn widget vào item
+                item.setSizeHint(widget.sizeHint())
+            self.friendlist.addItem("--Groups--")
+            for f in self.groups:
+                item = QListWidgetItem()
+                widget = QWidget()
+                layout = QVBoxLayout(widget)
+                
+                labelFriend = QLabel()
+                labelLastChat = QLabel("last msg:...")
+                labelLastChat.setObjectName("lastMsg")
+
+                labelFriend.setPixmap(self.iconGroup)
+                labelNameFriend = QLabel(f)
+                labelNameFriend.setObjectName("friendName")
+
+                layoutHFriend = QHBoxLayout()
+                layoutHFriend.setSpacing(2)             
+                layoutHFriend.setContentsMargins(0, 0, 0, 0)   
+                layoutHFriend.addWidget(labelFriend)
+                layoutHFriend.addWidget(labelNameFriend)
+                 
+                layout.addLayout(layoutHFriend)
+                layout.addWidget(labelLastChat)
+
+                self.friendlist.addItem(item)
+                self.friendlist.setItemWidget(item, widget)
+                
+                widget.setLayout(layout)
+                # Gắn widget vào item
+                item.setSizeHint(widget.sizeHint())
 
     #------ handle event ------------
-    def itemClicked(self, item):
-        username = item.text()
-        if username == "Search Result":
-            return
-        option = WidgetOptionUser(self.client, self.clientName, username)
-        option.setModal(True) 
-        option.show()
-
     def connectPrivitedChat(self, item):
-        self.friendName = item.text()
-        self.chatPrivite = ChatWindow(self.app, self.client, self.clientName, self.friendName, privite=True)
-        self.chatPrivite.show()
+        widget = self.friendlist.itemWidget(item)
+        if widget:
+            self.friendName = widget.findChild(QLabel, "friendName").text()
+        if self.friendName != "--Friends--" and self.friendName != "--Groups--":
+            if self.friendName in self.chats:
+               index = self.chatStack.indexOf(self.chats[self.friendName])
+               self.chatStack.setCurrentIndex(index)
+            else:
+                if self.friendName in self.groups:
+                    chatPrivite = ChatWindow(self.app, self.client, self.clientName, self.friendName, group=True)
+                else:
+                    chatPrivite = ChatWindow(self.app, self.client, self.clientName, self.friendName, privite=True)
+                self.chatStack.addWidget(chatPrivite)
+                self.chatStack.setCurrentWidget(chatPrivite)
+                self.chats[self.friendName] = chatPrivite
+        else:
+            return
+        
+    def updateNewMess(self, mess, sender,group):
+        if group == "":
+            for i in range(self.friendlist.count()):
+                item = self.friendlist.item(i)
+                widget = self.friendlist.itemWidget(item)
+                if not widget:
+                    continue
+                friendName = widget.findChild(QLabel, "friendName").text()
+                if friendName == sender:
+                    lastMsgLabel = widget.findChild(QLabel, "lastMsg")
+                    refreshIcon = widget.findChild(QLabel,"icon")
+                    refreshIcon.setPixmap(self.iconOn)
+                    if lastMsgLabel:
+                        lastMsgLabel.setText(f"last msg: {mess}")  # cập nhật tin nhắn cuối
+                    break
+        else:
+            for i in range(self.friendlist.count()):
+                item = self.friendlist.item(i)
+                widget = self.friendlist.itemWidget(item)
+                if not widget:
+                    continue
+                friendName = widget.findChild(QLabel, "friendName").text()
+                if friendName == group:
+                    lastMsgLabel = widget.findChild(QLabel, "lastMsg")
+                    if lastMsgLabel:
+                        lastMsgLabel.setText(f"last msg: {mess}")  # cập nhật tin nhắn cuối
+                    break
+
+
+
+        
+
+#    def checkMess(self, item):
+#        widget = self.friendList.itemWidget(item)
+#        if widget:
+#           name_label = widget.findChild(QLabel) 
+#           namecheck = name_label.text()
+#        for f in self.friendOnl:
+#           if f == namecheck:
+
+            
         
     def backToMainChat(self):
         self.stack.setCurrentIndex(1)
+
+    def createGroup(self):
+        self.dialog = WidgetCreateGroup(self.client, self.clientName)
+        self.dialog.exec()
+
     
 # ---- Model ----
 class ChatModel(QAbstractListModel):
@@ -416,11 +728,12 @@ class ChatDelegate(QStyledItemDelegate):
 
 # ---- Window ----
 class ChatWindow(QWidget):
-    def __init__(self, app, client, clientName=None, recvName=None, privite=False, stack=None):
+    def __init__(self, app, client, clientName=None, recvName=None, privite=False,group=False, stack=None):
         super().__init__()
         self.setWindowTitle(recvName)
         self.app = app
         self.privite = privite
+        self.group = group 
         self.clientName = clientName
         self.recvName = recvName
 
@@ -432,10 +745,13 @@ class ChatWindow(QWidget):
         ])
         self.client = client
 
-        if not self.privite:
+        if not self.privite and not self.group:
            self.client.newMessage.connect(self.recv)
+        elif self.group:
+            self.client.groupChatMessage.connect(self.recv)
         else:
             self.client.priviteChatMessage.connect(self.recv)
+        
 
         self.view = QListView()
         self.view.setModel(self.model)
@@ -466,18 +782,28 @@ class ChatWindow(QWidget):
             self.input.clear()
             self.view.scrollToBottom()
 
-    def recv(self, msg,sender=None):
+    def recv(self, msg,sender,group):
         print("Da nhan duoc tin nhan")
         print(msg)
         print(sender)
         text = msg
-        if sender is None:
+        if group == "" and sender == "":
+            if text:
+                now = datetime.now().strftime("%d/%m/%Y %H:%M")
+                self.model.addMessage({"type": "message", "sender": "friend", "text": text, "time": now})
+                self.input.clear()
+                self.view.scrollToBottom() 
+        elif group != "":
+            if group != self.recvName:
+                return 
             if text:
                 now = datetime.now().strftime("%d/%m/%Y %H:%M")
                 self.model.addMessage({"type": "message", "sender": "friend", "text": text, "time": now})
                 self.input.clear()
                 self.view.scrollToBottom() 
         else:
+            if sender != self.recvName:
+                return 
             if text:
                 now = datetime.now().strftime("%d/%m/%Y %H:%M")
                 self.model.addMessage({"type": "message", "sender": "friend", "text": text, "time": now})
@@ -490,7 +816,9 @@ class ChatWindow(QWidget):
         self.sendMess(self.msg)
         self.input.clear()
        # gui server
-        if not self.privite:
+        if not self.privite and not self.group:
             asyncio.create_task(self.client.sendChat("message",self.msg))
+        elif self.group:
+            asyncio.create_task(self.client.sendGroupChat(self.clientName,self.recvName,self.msg))
         else:
             asyncio.create_task(self.client.sendPriviteChat(self.clientName,self.recvName,self.msg))
