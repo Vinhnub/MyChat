@@ -228,7 +228,7 @@ async def start_server():
     try:
         loadUserData()
         loadGroup()
-        async with websockets.serve(handleClient, "26.253.176.29", 5555):
+        async with websockets.serve(handleClient, "103.20.97.88", 5555):
             print('Websockets Server Started')
             await asyncio.Future()
     finally:
