@@ -19,19 +19,19 @@ class WidgetCreateGroup(QDialog):
 
         labelGroupN = QLabel("Group Name:")
         self.lineGroupN = QLineEdit()
-        self.okButton = QPushButton("oke")
-        self.okButton.clicked.connect(self.showAllUserFunction)
+        self.lineGroupN.editingFinished.connect(self.setNameGroup)
 
         layoutNH = QHBoxLayout()
         layoutNH.addWidget(labelGroupN)
         layoutNH.addWidget(self.lineGroupN)
-        layoutNH.addWidget(self.okButton)
 
         self.listWidget = QListWidget(self)
         self.listWidget.setSelectionMode(QAbstractItemView.MultiSelection)
         self.listWidget.itemClicked.connect(self.saveSelection)
         
         self.createBtn = QPushButton("Create")
+        self.createBtn.setAutoDefault(False)
+        self.createBtn.setDefault(False)
         self.createBtn.clicked.connect(self.createGroup)
         
         vlayout = QVBoxLayout()
@@ -39,6 +39,10 @@ class WidgetCreateGroup(QDialog):
         vlayout.addWidget(self.listWidget)
         vlayout.addWidget(self.createBtn)
         self.setLayout(vlayout)
+
+    def setNameGroup(self):
+        self.name = self.lineGroupN.text()
+        self.showAllUserFunction()
 
     def saveSelection(self, item):
         if item.text() in self.userAdded:
@@ -48,14 +52,12 @@ class WidgetCreateGroup(QDialog):
 
     def createGroup(self):
         asyncio.create_task(self.client.createGroup(self.clientName, self.name, self.userAdded))
-
-    def getNameGroup(self):
-        self.name = self.lineGroupN.text()
-
+        
     def showAllUserFunction(self):
         asyncio.create_task(self.client.searchUser("Search", name=None))
 
     def showAllUser(self, list):
+        self.listWidget.clear()
         self.listWidget.addItems(list)
 
     def showResult(self,result):
@@ -295,11 +297,11 @@ class Profile(QMainWindow):
         self.friendlist.setFixedWidth(150)   # fix ngang 50, cao tự giãn theo cửa sổ
 
         btnBack = QPushButton("BackToMainChat")
-        btnBack.setFixedWidth(100)
+        btnBack.setFixedWidth(80)
         btnBack.clicked.connect(self.backToMainChat)
 
         createGroup = QPushButton("createGroup")
-        createGroup.setFixedWidth(100)
+        createGroup.setFixedWidth(80)
         createGroup.clicked.connect(self.createGroup)
 
         layoutH = QHBoxLayout()

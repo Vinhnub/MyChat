@@ -5,7 +5,6 @@ LOGIN = "login"
 SIGNUP = "signup"
 SEARCH = "Search"
 MESSAGE = "message"
-
 REQUEST = "request"
 ADD = "add"
 INVITE = "invite"

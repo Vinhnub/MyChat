@@ -10,21 +10,21 @@ print("SERVER SIDE")
 print("server:", HOST, SERVER_PORT)
 print("Waiting for client")
 def createGroup(connDB,cursor, admin, name, list):
+    print(f"{admin}, {name}, {list}")
     cursor.execute("SELECT EXISTS(SELECT 1 FROM chat_group WHERE g_name=?)", (name,))
     exists = cursor.fetchone()[0]
     if exists == 1:
-        mess = {"action": CREATEGROUP, "result": "Groupname exits!"}
+        mess = {"action": CREATEGROUP, "result": "Groupname exits!", "admin": admin}
     else:
         cursor.execute("INSERT INTO chat_group (g_name) VALUES (?)", (name,))
         connDB.commit()
         g_id = cursor.execute("select g_id from chat_group where g_name=?",(name,)).fetchone()[0]
+        
+        id = cursor.execute("select id from account where name=?",(admin,)).fetchone()[0]
+        cursor.execute("INSERT INTO group_member (g_id,id,role,status) VALUES (?,?,?,?)", (g_id,id,"admin","member"))
         for i in list:
-            if i == admin:
-                id = cursor.execute("select id from account where name=?",(admin,)).fetchone()[0]
-                cursor.execute("INSERT INTO group_member (g_id,id,role,status) VALUES (?,?,?,?)", (g_id,id,"admin","member"))
-            else:
-                id = cursor.execute("select id from account where name=?",(i,))
-                cursor.execute("INSERT INTO group_member (g_id,id,role,status) VALUES (?,?,?,?)", (g_id,id,"member","member"))
+            id = cursor.execute("select id from account where name=?",(i,)).fetchone()[0]
+            cursor.execute("INSERT INTO group_member (g_id,id,role,status) VALUES (?,?,?,?)", (g_id,id,"member","member"))
         connDB.commit()
         mess = {"action": CREATEGROUP, "result": "CreateGroup successfully"}
     jsonStr = json.dumps(mess)
@@ -139,8 +139,7 @@ def serverShowFriend(name, cursor):
     for id in idfriends:
         friends.append(cursor.execute("SELECT name FROM account where id=?", (id[0],)).fetchone()[0])
     print(friends)
-
-    idGroups = cursor.execute("SELECT g_id from group_member where id=? AND status=?",(id1,"member")).fetchall()
+    idGroups = cursor.execute("SELECT g_id from group_member where id=? AND role in (?,?)",(id1,"member","admin")).fetchall()
     for id in idGroups:
         groups.append(cursor.execute("SELECT g_name FROM chat_group where g_id=?", (id[0],)).fetchone()[0])
     print(groups)

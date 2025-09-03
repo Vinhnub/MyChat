@@ -42,7 +42,6 @@ CREATE TABLE IF NOT EXISTS group_member (
 )
 """)
 
-"""
 # === 1. User ===
 users = [
     ("dung", "dung123"),
@@ -105,10 +104,6 @@ group_members = [
     (5, 7, "member", "request"), (5, 9, "member", "member"), (5, 10, "member", "member"),
 ]
 cursor.executemany("INSERT INTO group_member (g_id, id, role, status) VALUES (?, ?, ?, ?)", group_members)
-"""
 
-cursor.execute("select * from chat_group") 
-for row in cursor:
-    print(row)
 conn.commit()
 conn.close()
