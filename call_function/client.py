@@ -1,102 +1,45 @@
-import argparse
-import asyncio
-import json
-import aiohttp
-import sounddevice as sd
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer, MediaStreamTrack
+import pyaudio
+from twisted.internet import reactor, protocol
+from twisted.protocols.basic import LineReceiver
+import base64
 
-# ==== Audio Track cho micro ====
-class MicrophoneTrack(MediaStreamTrack):
-    kind = "audio"
-    def __init__(self, device_index=None):
-        super().__init__()
-        self.device_index = device_index
-        self.stream = sd.InputStream(samplerate=44100, channels=1, dtype="int16", device=device_index)
-        self.stream.start()
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 44100
 
-    async def recv(self):
-        frame, _ = self.stream.read(960)  # 20ms @ 48kHz
-        return self._create_audio_frame(frame, 48000)
+class VoiceClient(LineReceiver):
+    def __init__(self):
+        self.audio = pyaudio.PyAudio()
+        self.stream_out = self.audio.open(format=FORMAT, channels=CHANNELS,
+                                          rate=RATE, output=True,
+                                          frames_per_buffer=CHUNK)
+        self.stream_in = self.audio.open(format=FORMAT, channels=CHANNELS,
+                                         rate=RATE, input=True,
+                                         frames_per_buffer=CHUNK)
+        reactor.callInThread(self.record_and_send)
 
-# ==== Hàm phát loa ====
-class SpeakerPlayer:
-    def __init__(self, device_index=None):
-        self.device_index = device_index
-        self.stream = sd.OutputStream(samplerate=48000, channels=1, dtype="int16", device=device_index)
-        self.stream.start()
-
-    async def play_track(self, track):
+    def record_and_send(self):
         while True:
-            frame = await track.recv()
-            data = frame.to_ndarray()
-            self.stream.write(data)
+            data = self.stream_in.read(CHUNK, exception_on_overflow=False)
+            self.sendLine(base64.b64encode(data))  # gửi base64 để tránh lỗi byte
 
-# ==== Client WebRTC ====
-async def run(room, stun, mic_index, speaker_index):
-    config = RTCConfiguration(iceServers=[RTCIceServer(urls=[stun])] if stun else [])
-    pc = RTCPeerConnection(configuration=config)
+    def lineReceived(self, line):
+        data = base64.b64decode(line)
+        self.stream_out.write(data)
 
-    # log ICE state
-    @pc.on("iceconnectionstatechange")
-    def on_ice_state_change():
-        print("[ICE] state:", pc.iceConnectionState)
+class VoiceFactory(protocol.ClientFactory):
+    def buildProtocol(self, addr):
+        return VoiceClient()
 
-    # log remote track
-    speaker = SpeakerPlayer(device_index=speaker_index)
-    @pc.on("track")
-    def on_track(track):
-        print("[Signal] Got remote track:", track.kind)
-        if track.kind == "audio":
-            asyncio.create_task(speaker.play_track(track))
+    def clientConnectionFailed(self, connector, reason):
+        print("[Client] Connection failed:", reason)
+        reactor.stop()
 
-    # add microphone
-    pc.addTrack(MicrophoneTrack(device_index=mic_index))
-
-    # signaling connect
-    session = aiohttp.ClientSession()
-    ws = await session.ws_connect("http://26.253.176.29:8080/ws")
-
-    await ws.send_json({"type": "join", "room": room})
-    print(f"[Info] Joined room={room}")
-
-    async def send(msg):
-        await ws.send_json(msg)
-
-    # create and send offer
-    offer = await pc.createOffer()
-    await pc.setLocalDescription(offer)
-    await send({"type": "offer", "sdp": offer.sdp, "sdpType": offer.type})
-
-    async for msg in ws:
-        if msg.type == aiohttp.WSMsgType.TEXT:
-            data = json.loads(msg.data)
-
-            if data["type"] == "offer":
-                print("[Signal] Got offer")
-                await pc.setRemoteDescription(RTCSessionDescription(sdp=data["sdp"], type=data["sdpType"]))
-                answer = await pc.createAnswer()
-                await pc.setLocalDescription(answer)
-                await send({"type": "answer", "sdp": answer.sdp, "sdpType": answer.type})
-
-            elif data["type"] == "answer":
-                print("[Signal] Got answer")
-                await pc.setRemoteDescription(RTCSessionDescription(sdp=data["sdp"], type=data["sdpType"]))
-
-            elif data["type"] == "ice":
-                print("[Signal] Got ICE")
-                candidate = data["candidate"]
-                if candidate:
-                    await pc.addIceCandidate(candidate)
-
-        elif msg.type == aiohttp.WSMsgType.ERROR:
-            print("[Error] ws closed", ws.exception())
+    def clientConnectionLost(self, connector, reason):
+        print("[Client] Connection lost")
+        reactor.stop()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--room", type=str, default="room1")
-    parser.add_argument("--stun", type=str, default="stun:stun.l.google.com:19302")
-    parser.add_argument("--mic", type=int, default=15, help="Input device index")
-    parser.add_argument("--speaker", type=int, default=12, help="Output device index")
-    args = parser.parse_args()
-
-    asyncio.run(run(args.room, args.stun, args.mic, args.speaker))
+    reactor.connectTCP("26.253.176.29", 5000, VoiceFactory())
+    reactor.run()
