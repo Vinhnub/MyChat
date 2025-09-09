@@ -11,7 +11,7 @@ class MicrophoneTrack(MediaStreamTrack):
     def __init__(self, device_index=None):
         super().__init__()
         self.device_index = device_index
-        self.stream = sd.InputStream(samplerate=48000, channels=1, dtype="int16", device=device_index)
+        self.stream = sd.InputStream(samplerate=44100, channels=1, dtype="int16", device=device_index)
         self.stream.start()
 
     async def recv(self):
@@ -54,7 +54,7 @@ async def run(room, stun, mic_index, speaker_index):
 
     # signaling connect
     session = aiohttp.ClientSession()
-    ws = await session.ws_connect("http://localhost:8080/ws")
+    ws = await session.ws_connect("http://26.253.176.29:8080/ws")
 
     await ws.send_json({"type": "join", "room": room})
     print(f"[Info] Joined room={room}")
@@ -95,8 +95,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--room", type=str, default="room1")
     parser.add_argument("--stun", type=str, default="stun:stun.l.google.com:19302")
-    parser.add_argument("--mic", type=int, default=None, help="Input device index")
-    parser.add_argument("--speaker", type=int, default=None, help="Output device index")
+    parser.add_argument("--mic", type=int, default=15, help="Input device index")
+    parser.add_argument("--speaker", type=int, default=12, help="Output device index")
     args = parser.parse_args()
 
     asyncio.run(run(args.room, args.stun, args.mic, args.speaker))
