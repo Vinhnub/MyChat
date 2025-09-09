@@ -1,80 +1,59 @@
 import asyncio
 import json
-from aiohttp import web, WSMsgType
+from aiohttp import web
 
-# rooms: {room_name: {peer_name: websocket}}
-rooms = {}
+rooms = {}  # room_id -> set of websocket connections
 
-async def ws_handler(request):
+async def websocket_handler(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
+    peer_id = id(ws)
     room = None
-    name = None
+    print(f"[Signal] Peer {peer_id} connected")
 
-    try:
-        async for msg in ws:
-            if msg.type != WSMsgType.TEXT:
-                continue
+    async for msg in ws:
+        if msg.type == web.WSMsgType.TEXT:
             data = json.loads(msg.data)
 
-            kind = data.get("type")
-
-            # 1) Client join room
-            if kind == "join":
+            # join room
+            if data["type"] == "join":
                 room = data["room"]
-                name = data["name"]
-
-                if room not in rooms:
-                    rooms[room] = {}
-                rooms[room][name] = ws
-
-                # gửi danh sách peers hiện có cho client mới
-                peers = [n for n in rooms[room].keys() if n != name]
-                await ws.send_json({"type": "peers", "peers": peers})
+                rooms.setdefault(room, set()).add(ws)
+                print(f"[Signal] Peer {peer_id} joined room {room}")
 
                 # thông báo cho các peer khác
-                await broadcast(room, {"type": "peer-joined", "name": name}, exclude=name)
+                for other in rooms[room]:
+                    if other != ws:
+                        await other.send_json({
+                            "type": "peer-joined",
+                            "id": peer_id
+                        })
 
-            # 2) Chuyển tiếp offer/answer/ice theo "to"
-            elif kind in ("offer", "answer", "ice"):
-                dst = data.get("to")
-                if room and dst and room in rooms and dst in rooms[room]:
-                    await rooms[room][dst].send_json({
-                        "type": kind,
-                        "from": name,
-                        "data": data.get("data"),
-                    })
+            # relay offer/answer/ice
+            elif data["type"] in ["offer", "answer", "ice"]:
+                if room and room in rooms:
+                    for other in rooms[room]:
+                        if other != ws:
+                            print(f"[Relay] {data['type']} from {peer_id} -> peer")
+                            await other.send_json({
+                                "from": peer_id,
+                                **data
+                            })
 
-            # 3) Ping/Pong optional
-            elif kind == "ping":
-                await ws.send_json({"type": "pong"})
+        elif msg.type == web.WSMsgType.ERROR:
+            print(f"[Error] WS connection closed with exception {ws.exception()}")
 
-    except asyncio.CancelledError:
-        pass
-    finally:
-        if room and name and room in rooms and name in rooms[room]:
-            del rooms[room][name]
-            # thông báo rời phòng
-            await broadcast(room, {"type": "peer-left", "name": name})
-            if not rooms[room]:
-                del rooms[room]
-
+    # cleanup
+    if room and room in rooms:
+        rooms[room].discard(ws)
+        if not rooms[room]:
+            del rooms[room]
+    print(f"[Signal] Peer {peer_id} disconnected")
     return ws
 
-async def broadcast(room, message, exclude=None):
-    if room not in rooms:
-        return
-    for peer_name, peer_ws in list(rooms[room].items()):
-        if exclude and peer_name == exclude:
-            continue
-        try:
-            await peer_ws.send_json(message)
-        except Exception:
-            pass  # bỏ qua peer lỗi
-
 app = web.Application()
-app.router.add_get("/ws", ws_handler)
+app.router.add_get("/ws", websocket_handler)
 
 if __name__ == "__main__":
-    web.run_app(app, host="26.253.176.29", port=8765)
+    web.run_app(app, port=8080)
