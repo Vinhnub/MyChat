@@ -12,7 +12,6 @@ from aiortc import (
     RTCConfiguration,
     RTCIceServer,
 )
-
 from aiortc.mediastreams import AudioStreamTrack
 from websockets import connect
 
@@ -20,106 +19,170 @@ from websockets import connect
 class MicrophoneStreamTrack(AudioStreamTrack):
     kind = "audio"
 
-    def __init__(self, samplerate=44100, channels=1, blocksize=960, device=None):
-        super().__init__()
-        self.samplerate = samplerate
-        self.channels = channels
-        self.blocksize = blocksize  # frames per chunk (20ms @ 48kHz => 960)
+    def __init__(self, samplerate=48000, channels=1, blocksize=960, device=None):
+        super().__init__()  # 初始化 MediaStreamTrack
         self.device = device
+
+        # Query device info and pick valid channels / samplerate
+        try:
+            info = sd.query_devices(device, 'input')
+            maxch = int(info.get('max_input_channels', 1))
+            default_sr = int(info.get('default_samplerate', samplerate))
+        except Exception as e:
+            print("[Mic] query_devices error:", e)
+            maxch = channels
+            default_sr = samplerate
+
+        self.channels = min(channels, max(1, maxch))
+        self.samplerate = default_sr
+        self.blocksize = blocksize
         self._queue = asyncio.Queue()
-        self._stream = sd.InputStream(
-            channels=self.channels,
-            samplerate=self.samplerate,
-            blocksize=self.blocksize,
-            dtype="float32",
-            device=self.device,
-            callback=self._callback,
-        )
-        self._stream.start()
+
+        print(f"[Mic] Opening device index={device}, name='{info.get('name','?')}', "
+              f"channels={self.channels}, samplerate={self.samplerate}")
+
+        # Use try/except to surface opening errors
+        try:
+            self._stream = sd.InputStream(
+                device=self.device,
+                channels=self.channels,
+                samplerate=self.samplerate,
+                blocksize=self.blocksize,
+                dtype="float32",
+                callback=self._callback,
+                # extra_settings optional...
+            )
+            self._stream.start()
+        except Exception as e:
+            print("[Mic] Error opening InputStream:", e)
+            raise
 
     def _callback(self, indata, frames, time, status):
         if status:
-            print("Input status:", status)
+            print("[Mic] Input status:", status)
         # indata shape: (frames, channels)
         # Convert float32 [-1,1] -> int16
         audio_i16 = np.clip(indata, -1, 1)
         audio_i16 = (audio_i16 * 32767.0).astype(np.int16)
-        self._queue.put_nowait(audio_i16)
+        # put into queue (shape: frames x channels)
+        try:
+            self._queue.put_nowait(audio_i16)
+        except Exception as e:
+            print("[Mic] Queue put error:", e)
 
         # ====== LOG MIC ======
         rms = np.sqrt(np.mean(audio_i16.astype(np.float32) ** 2))
-        print(f"[Mic] frames={frames}, rms={rms:.2f}")
+        print(f"[Mic] frames={frames}, shape={audio_i16.shape}, rms={rms:.2f}")
 
     async def recv(self):
-        # Lấy một khung từ queue và trả về av.AudioFrame
         pcm = await self._queue.get()
-        frame = av.AudioFrame(format="s16", layout="mono" if self.channels == 1 else "stereo",
-                              samples=pcm.shape[0])
-        # Đổ dữ liệu vào frame
+        # pcm shape: (frames, channels)
+        frames = pcm.shape[0]
+        layout = "mono" if self.channels == 1 else "stereo"
+        frame = av.AudioFrame(format="s16", layout=layout, samples=frames)
         for plane in frame.planes:
-            # plane.buffer là memoryview => ghi dữ liệu
             plane.update(pcm.tobytes())
         frame.sample_rate = self.samplerate
         return frame
 
     async def stop(self):
         await super().stop()
-        if self._stream:
-            self._stream.stop()
-            self._stream.close()
+        if hasattr(self, "_stream") and self._stream:
+            try:
+                self._stream.stop()
+                self._stream.close()
+            except Exception:
+                pass
 
 # ================= Speaker (playback) =================
 class SpeakerPlayer:
     """
     Nhận frames từ track và phát ra loa bằng sounddevice.
-    Chạy như một task asyncio: speaker.start(track) -> task.
+    Chạy như một task asyncio: speaker.play_track(track) -> task.
     """
     def __init__(self, samplerate=48000, channels=1, device=None):
         self.samplerate = samplerate
         self.channels = channels
         self.device = device
-        self._stream = sd.OutputStream(
-            channels=self.channels,
-            samplerate=self.samplerate,
-            dtype="float32",
-            device=self.device,
-            blocksize=960,
-        )
-        self._stream.start()
         self._closed = False
 
+        # Query output device to choose valid channel count
+        try:
+            info = sd.query_devices(device, 'output')
+            maxout = int(info.get('max_output_channels', 2))
+        except Exception as e:
+            print("[Speaker] query_devices error:", e)
+            maxout = channels
+
+        self.channels = min(self.channels, max(1, maxout))
+        print(f"[Speaker] Opening device index={device}, channels={self.channels}, samplerate={self.samplerate}")
+
+        try:
+            self._stream = sd.OutputStream(
+                device=self.device,
+                channels=self.channels,
+                samplerate=self.samplerate,
+                dtype="float32",
+                blocksize=960,
+            )
+            self._stream.start()
+        except Exception as e:
+            print("[Speaker] Error opening OutputStream:", e)
+            raise
+
     async def play_track(self, track):
+        print("[Speaker] play_track started for track:", track)
         try:
             while True:
+                # Wait for remote frame
                 frame = await track.recv()
-                # frame.format = s16, convert -> float32 [-1,1]
-                pcm_s16 = frame.to_ndarray()
-                if pcm_s16.dtype != np.int16:
-                    pcm_s16 = pcm_s16.astype(np.int16)
-                pcm_f32 = (pcm_s16.astype(np.float32) / 32767.0)
+                if frame is None:
+                    print("[Speaker] Received None frame")
+                    continue
 
-                # ====== LOG SPEAKER ======
+                # Convert to ndarray
+                pcm = frame.to_ndarray()
+                # Normalize/convert s16 -> float32 in range [-1,1] if needed
+                if pcm.dtype == np.int16:
+                    pcm_f32 = pcm.astype(np.float32) / 32767.0
+                elif pcm.dtype == np.float32:
+                    pcm_f32 = pcm
+                else:
+                    pcm_f32 = pcm.astype(np.float32) / np.iinfo(pcm.dtype).max
+
+                # LOG
                 rms = np.sqrt(np.mean(pcm_f32 ** 2))
-                print(f"[Speaker] samples={pcm_f32.shape}, rms={rms:.2f}")
+                print(f"[Speaker] samples={pcm_f32.shape}, dtype={pcm.dtype}, rms={rms:.4f}")
 
-                
-                # Nếu stereo/mono mismatch, điều chỉnh
+                # Shape adjustments
                 if pcm_f32.ndim == 1 and self.channels == 2:
                     pcm_f32 = np.stack([pcm_f32, pcm_f32], axis=1)
                 elif pcm_f32.ndim == 2 and pcm_f32.shape[1] != self.channels:
-                    # ép về mono
-                    pcm_f32 = pcm_f32.mean(axis=1, keepdims=True)
-                self._stream.write(pcm_f32)
+                    # mix-down or upmix
+                    if self.channels == 1:
+                        pcm_f32 = pcm_f32.mean(axis=1, keepdims=True)
+                    else:
+                        # repeat first channel
+                        pcm_f32 = np.tile(pcm_f32[:, :1], (1, self.channels))
+
+                # sounddevice expects shape (frames, channels) for float32
+                try:
+                    self._stream.write(pcm_f32)
+                except Exception as e:
+                    print("[Speaker] OutputStream write error:", e)
         except asyncio.CancelledError:
-            pass
+            print("[Speaker] play_track cancelled")
+        except Exception as e:
+            print("[Speaker] play_track error:", e)
         finally:
             self.close()
 
     def close(self):
         if not self._closed:
             try:
-                self._stream.stop()
-                self._stream.close()
+                if hasattr(self, "_stream") and self._stream:
+                    self._stream.stop()
+                    self._stream.close()
             except Exception:
                 pass
             self._closed = True
@@ -139,26 +202,41 @@ async def main():
     parser.add_argument("--stun", default="stun:stun.l.google.com:19302", help="STUN server URL")
     args = parser.parse_args()
 
-    # In case user wants to list devices
-    # print(sd.query_devices())
-
     name = args.name or f"peer-{uuid.uuid4().hex[:6]}"
 
-    # WebRTC PeerConnection
     # WebRTC PeerConnection (aiortc: dùng RTCConfiguration / RTCIceServer)
-    config = RTCConfiguration(
-    iceServers=[RTCIceServer(urls=[args.stun])]
-    )
+    config = RTCConfiguration(iceServers=[RTCIceServer(urls=[args.stun])])
     pc = RTCPeerConnection(configuration=config)
 
+    # place-holder for speaker task
+    speaker_task = None
+
+    # Speaker to play remote audio (create BEFORE on("track") handler so closure sees it)
+    speaker = SpeakerPlayer(samplerate=48000, channels=1, device=args.spk_index)
+
+    def set_speaker_task(task):
+        nonlocal speaker_task
+        if speaker_task:
+            return
+        speaker_task = task
+
+    # on track event (use this instead of polling)
+    @pc.on("track")
+    def on_track(track):
+        print("[Signal] Got remote track:", track.kind)
+        if track.kind == "audio":
+            # start playback task
+            task = asyncio.create_task(speaker.play_track(track))
+            set_speaker_task(task)
+
+    # ICE state logging
+    @pc.on("iceconnectionstatechange")
+    def on_ice_state_change():
+        print("[ICE] state:", pc.iceConnectionState)
 
     # Mic track
-    mic = MicrophoneStreamTrack(device=args.mic_index)
+    mic = MicrophoneStreamTrack(samplerate=48000, channels=1, device=args.mic_index)
     pc.addTrack(mic)
-
-    # Speaker to play remote audio
-    speaker = SpeakerPlayer(device=args.spk_index)
-    speaker_task = None  # task chạy playback
 
     # Signaling websocket
     async with connect(args.server) as ws:
@@ -202,20 +280,17 @@ async def main():
         # Lắng nghe message signaling
         async for message in ws:
             data = json.loads(message)
-
             typ = data.get("type")
 
             if typ == "peers":
                 peers = data.get("peers", [])
                 print(f"[Info] Joined room='{args.room}' as '{name}'. Peers: {peers}")
-                # Nếu là caller và có sẵn peer -> gọi peer đầu tiên
                 if args.caller and peers:
                     await call(peers[0])
 
             elif typ == "peer-joined":
                 peer = data.get("name")
                 print(f"[Signal] Peer joined: {peer}")
-                # Nếu là caller và chưa có remote -> gọi ngay
                 if args.caller and remote_name[0] is None:
                     await call(peer)
 
@@ -229,7 +304,7 @@ async def main():
                 rtype = data["data"]["type"]
                 remote_name[0] = frm
 
-                # Nhận offer -> setRemote -> createAnswer -> send answer
+                print("[Signal] Received offer from", frm)
                 await pc.setRemoteDescription(RTCSessionDescription(sdp=sdp, type=rtype))
                 answer = await pc.createAnswer()
                 await pc.setLocalDescription(answer)
@@ -244,58 +319,33 @@ async def main():
                     }
                 })
 
-                # Khi đã có remote description, bắt đầu phát loa từ track
-                # Tạo task playback cho track audio từ peer
-                asyncio.create_task(start_playback(pc, speaker, lambda t: set_speaker_task(t)))
-
             elif typ == "answer":
+                print("[Signal] Received answer")
                 sdp = data["data"]["sdp"]
                 rtype = data["data"]["type"]
                 await pc.setRemoteDescription(RTCSessionDescription(sdp=sdp, type=rtype))
-                # Bắt đầu playback
-                asyncio.create_task(start_playback(pc, speaker, lambda t: set_speaker_task(t)))
 
             elif typ == "ice":
                 cand = data["data"]["candidate"]
                 sdpMid = data["data"]["sdpMid"]
                 sdpMLineIndex = data["data"]["sdpMLineIndex"]
-                # cand là dòng candidate trong SDP
                 candidate = RTCIceCandidate(
                     sdpMid=sdpMid,
                     sdpMLineIndex=sdpMLineIndex,
                     candidate=cand
                 )
-                await pc.addIceCandidate(candidate)
+                try:
+                    await pc.addIceCandidate(candidate)
+                except Exception as e:
+                    print("[ICE] addIceCandidate error:", e)
 
-        # end for ws
+    # end websocket
 
     # Cleanup
     if speaker_task:
         speaker_task.cancel()
     await mic.stop()
     await pc.close()
-
-    def set_speaker_task(task):
-        nonlocal speaker_task
-        if speaker_task:
-            return
-        speaker_task = task
-
-async def start_playback(pc: RTCPeerConnection, speaker: SpeakerPlayer, set_task):
-    """
-    Lấy track audio từ remote và phát.
-    Gọi sau khi setRemoteDescription xong (ở offer/answer).
-    """
-    # Chờ có receiver audio
-    # pc.getReceivers() có thể có trước, nhưng track chưa recv ngay -> loop đợi track
-    for _ in range(50):
-        for r in pc.getReceivers():
-            if r.kind == "audio" and r.track:
-                task = asyncio.create_task(speaker.play_track(r.track))
-                set_task(task)
-                return
-        await asyncio.sleep(0.1)
-    print("[Warn] No remote audio track found to play.")
 
 if __name__ == "__main__":
     asyncio.run(main())
