@@ -10,12 +10,11 @@ class VoiceServer(DatagramProtocol):
             self.clients.add(addr)
             print("[Server] New client:", addr)
 
-        # Relay tới các client khác
         for client in self.clients:
             if client != addr:
                 self.transport.write(data, client)
 
 if __name__ == "__main__":
-    reactor.listenUDP(5000, VoiceServer())
+    reactor.listenUDP(5000, VoiceServer(), interface="26.47.5.36")
     print("[Server] UDP Voice Server running on port 5000")
     reactor.run()
