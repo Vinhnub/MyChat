@@ -1,59 +1,27 @@
-import asyncio
-import json
-from aiohttp import web
+from twisted.internet.protocol import Factory
+from twisted.protocols.basic import LineReceiver
+from twisted.internet import reactor
 
-rooms = {}  # room_id -> set of websocket connections
+clients = []
 
-async def websocket_handler(request):
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
+class VoiceChat(LineReceiver):
+    def connectionMade(self):
+        clients.append(self)
+        print("[Server] Client connected:", self.transport.getPeer())
 
-    peer_id = id(ws)
-    room = None
-    print(f"[Signal] Peer {peer_id} connected")
+    def connectionLost(self, reason):
+        clients.remove(self)
+        print("[Server] Client disconnected")
 
-    async for msg in ws:
-        if msg.type == web.WSMsgType.TEXT:
-            data = json.loads(msg.data)
+    def lineReceived(self, line):
+        # Broadcast dữ liệu âm thanh tới các client khác
+        for c in clients:
+            if c != self:
+                c.sendLine(line)
 
-            # join room
-            if data["type"] == "join":
-                room = data["room"]
-                rooms.setdefault(room, set()).add(ws)
-                print(f"[Signal] Peer {peer_id} joined room {room}")
+factory = Factory()
+factory.protocol = VoiceChat
 
-                # thông báo cho các peer khác
-                for other in rooms[room]:
-                    if other != ws:
-                        await other.send_json({
-                            "type": "peer-joined",
-                            "id": peer_id
-                        })
-
-            # relay offer/answer/ice
-            elif data["type"] in ["offer", "answer", "ice"]:
-                if room and room in rooms:
-                    for other in rooms[room]:
-                        if other != ws:
-                            print(f"[Relay] {data['type']} from {peer_id} -> peer")
-                            await other.send_json({
-                                "from": peer_id,
-                                **data
-                            })
-
-        elif msg.type == web.WSMsgType.ERROR:
-            print(f"[Error] WS connection closed with exception {ws.exception()}")
-
-    # cleanup
-    if room and room in rooms:
-        rooms[room].discard(ws)
-        if not rooms[room]:
-            del rooms[room]
-    print(f"[Signal] Peer {peer_id} disconnected")
-    return ws
-
-app = web.Application()
-app.router.add_get("/ws", websocket_handler)
-
-if __name__ == "__main__":
-    web.run_app(app, host='26.253.176.29', port=8080)
+print("[Server] Listening on 0.0.0.0:5000")
+reactor.listenTCP(5000, factory)
+reactor.run()
