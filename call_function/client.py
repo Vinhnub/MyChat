@@ -2,7 +2,9 @@ import pyaudio
 import base64
 from twisted.internet import reactor
 from twisted.internet.protocol import DatagramProtocol
+import numpy as np
 
+VOLUME = 0.5
 CHUNK = 512
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
@@ -34,7 +36,9 @@ class VoiceClient(DatagramProtocol):
 
     def datagramReceived(self, datagram, addr):
         data = base64.b64decode(datagram)
-        self.stream_out.write(data)
+        audio_np = np.frombuffer(data, dtype=np.int16)
+        audio_np = (audio_np * VOLUME).astype(np.int16)
+        self.stream_out.write(audio_np.tobytes())
 
 if __name__ == "__main__":
     reactor.listenUDP(6666, VoiceClient())  # port 0 = random client port
