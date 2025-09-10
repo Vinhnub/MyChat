@@ -10,7 +10,6 @@ class VoiceServer(DatagramProtocol):
             self.clients.add(addr)
             print("[Server] New client:", addr)
 
-        # Relay tới các client khác
         for client in self.clients:
             if client != addr:
                 self.transport.write(data, client)
