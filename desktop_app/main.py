@@ -5,6 +5,7 @@ import json
 import threading
 from PySide6.QtCore import QObject, Signal
 from user import *
+from constants import *
 
 class Signals(QObject):
     callGui = Signal(object)
@@ -142,7 +143,7 @@ class Main():
         while True:
             try:
                 self.loop = asyncio.get_running_loop()
-                async with websockets.connect("ws://103.20.97.88:5555") as websocket:
+                async with websockets.connect(f"ws://{SERVER_IP}:{PORT_TCP}") as websocket:
                     await asyncio.gather(self.send(websocket), self.recieve(websocket))
             except:
                 await asyncio.sleep(1)  

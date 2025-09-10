@@ -16,6 +16,6 @@ class VoiceServer(DatagramProtocol):
                 self.transport.write(data, client)
 
 if __name__ == "__main__":
-    reactor.listenUDP(5000, VoiceServer())
+    reactor.listenUDP(5000, VoiceServer(), interface="26.253.176.29")
     print("[Server] UDP Voice Server running on port 5000")
     reactor.run()
