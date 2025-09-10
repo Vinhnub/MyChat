@@ -1,27 +1,21 @@
-from twisted.internet.protocol import Factory
-from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor
+from twisted.internet.protocol import DatagramProtocol
 
-clients = []
+class VoiceServer(DatagramProtocol):
+    def __init__(self):
+        self.clients = set()
 
-class VoiceChat(LineReceiver):
-    def connectionMade(self):
-        clients.append(self)
-        print("[Server] Client connected:", self.transport.getPeer())
+    def datagramReceived(self, data, addr):
+        if addr not in self.clients:
+            self.clients.add(addr)
+            print("[Server] New client:", addr)
 
-    def connectionLost(self, reason):
-        clients.remove(self)
-        print("[Server] Client disconnected")
+        # Relay tới các client khác
+        for client in self.clients:
+            if client != addr:
+                self.transport.write(data, client)
 
-    def lineReceived(self, line):
-        # Broadcast dữ liệu âm thanh tới các client khác
-        for c in clients:
-            if c != self:
-                c.sendLine(line)
-
-factory = Factory()
-factory.protocol = VoiceChat
-
-print("[Server] Listening on 0.0.0.0:5000")
-reactor.listenTCP(5000, factory)
-reactor.run()
+if __name__ == "__main__":
+    reactor.listenUDP(5000, VoiceServer())
+    print("[Server] UDP Voice Server running on port 5000")
+    reactor.run()

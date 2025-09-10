@@ -37,5 +37,5 @@ class VoiceClient(DatagramProtocol):
         self.stream_out.write(data)
 
 if __name__ == "__main__":
-    reactor.listenUDP(0, VoiceClient())  # port 0 = random client port
+    reactor.listenUDP(6666, VoiceClient())  # port 0 = random client port
     reactor.run()
