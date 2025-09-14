@@ -126,18 +126,16 @@ class Main():
             self.check = None
 
     def handleNewMemCallResult(self, data):
-        if self.secondWindow is not None and self.voice is not None:
-            username = next(iter(data["info"]))
-            self.voice.memberVolume[username] = 1
-            self.secondWindow.addMemberIntoCall(data["info"])
+        username = next(iter(data["info"]))
+        self.voice.memberVolume[username] = 1
+        self.secondWindow.addMemberIntoCall(data["info"])
 
     def handleMemLeaveCallResult(self, data):
-        if self.secondWindow is not None and self.voice is not None:
-            username = data["info"]
-            if username in self.voice.memberVolume:
-                del self.voice.memberVolume[username]
-            self.secondWindow.removeMemberFromCall(username)
-     
+        username = data["info"]
+        if username in self.voice.memberVolume:
+            del self.voice.memberVolume[username]
+        self.secondWindow.removeMemberFromCall(username)
+    
     def startCall(self, groupName, username, data):
         try:
             self.isRunningCall = True
