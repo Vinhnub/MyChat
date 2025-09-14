@@ -31,10 +31,12 @@
 
 import asyncio
 import websockets
-import time
-import os
 import sqlite3
 import json
+from server_call import VoiceServer
+import threading
+from twisted.internet import reactor
+from constants import *
 
 userData = {}
 userOnline = {}
@@ -60,6 +62,7 @@ def loadGroup():
     for row in cur.fetchall():
         groups[row[0]]["password"] = row[1]
         groups[row[0]]["groupDes"] = row[2]
+        groups[row[0]]["memberCall"] = {}
     print(groups)
 
 def loadDataFor(username, websocket):
@@ -102,7 +105,7 @@ def loadDataFor(username, websocket):
         }
 
     if username not in userOnline:
-        userOnline[username] = {"userFullName" : userFullName, "ws" : websocket}
+        userOnline[username] = {"userFullName" : userFullName, "ws" : websocket, "groupCall" : None}
         print(userOnline)
     
     return {"username" : username, "userFullName": userFullName, "groups": groupsDict}
@@ -115,7 +118,7 @@ def register(fullname, username, password):
 
 def createGroup(groupDes, groupName, groupPassword, userName):
     global groups, conn, cur
-    groups[groupName] = {"members" : [(userName, userOnline[userName]["userFullName"])], "password" : groupPassword, "groupDes" : groupDes}
+    groups[groupName] = {"members" : [(userName, userOnline[userName]["userFullName"])], "password" : groupPassword, "groupDes" : groupDes, "memberCall" : {}}
     cur.execute("INSERT INTO GroupChat (groupName, groupPassword, groupDes, createdBy) values (?, ?, ?, ?)", (groupName, groupPassword, groupDes, userName))
     cur.execute("INSERT INTO MemberOF (userName, groupName) values (?, ?)", (userName, groupName))
     conn.commit()
@@ -144,6 +147,16 @@ def updateMessageDB(msg):
     cur.execute("INSERT INTO Message (mesContent, date, userName, groupName) VALUES (?, ?, ?, ?)", msgData)
     conn.commit()
 
+def startVoiceServer():
+    global groups, userOnline
+    print("[Debug] init voice server...")
+    voiceServer = VoiceServer(groups, userOnline)
+    reactor.listenUDP(PORT_UDP, voiceServer, interface=SERVER_IP)
+    print("[Debug] reactor starting...")
+    reactor.run(installSignalHandlers=False)
+    print("[Debug] reactor ended")
+
+
 async def handleClient(websocket):
     global groups, userData, userOnline
     print("New client connected.")
@@ -161,7 +174,9 @@ async def handleClient(websocket):
                 await websocket.send(json.dumps(responseData))
 
             if data["type"] == "signIn":
-                if data["username"] in userOnline:
+                if data["username"] not in userData:
+                    responseData = {"type" : "signIn", "status" : False, "data" : None} 
+                elif data["username"] in userOnline:
                     responseData = {"type" : "signIn", "status" : "error", "data" : None} # error happen when user already online and someone try to login
                 elif userData[data["username"]] != data["password"]:
                     responseData = {"type" : "signIn", "status" : False, "data" : None} 
@@ -183,6 +198,7 @@ async def handleClient(websocket):
                     responseData = {"type" : "logout", "status" : True}
                     print(f"{data["username"]} log out.")   
                     del userOnline[data["username"]]
+                    username = None
                 else:
                     responseData = {"type" : "logout", "status" : False}
                 await websocket.send(json.dumps(responseData))
@@ -215,12 +231,37 @@ async def handleClient(websocket):
                                                                                        }
                                     }
                 await websocket.send(json.dumps(responseData)) 
+            
+            if data["type"] == "call":
+                currentMemberTemp = [(data["username"], userOnline[data["username"]]["userFullName"])]
+                for mem in groups[data["groupName"]]["memberCall"]:
+                    if mem in userOnline:
+                        currentMemberTemp.append((mem, userOnline[mem]["userFullName"]))
+                        responseDataTemp = {"type" : "newMemCall", "info" : {data["username"] : userOnline[data["username"]]["userFullName"]}}
+                        await userOnline[mem]["ws"].send(json.dumps(responseDataTemp))
+                userOnline[data["username"]]["groupCall"] = data["groupName"]
+                responseData = {"type" : "call", "status" : True, "username" : data["username"], "groupName" : data["groupName"], "data" : currentMemberTemp}
+                await websocket.send(json.dumps(responseData))
+
+            if data["type"] == "leaveCall":
+                for mem in groups[data["groupName"]]["memberCall"]:
+                    if mem in userOnline:
+                        responseDataTemp = {"type" : "memLeaveCall", "info" : data["username"]}
+                        await userOnline[mem]["ws"].send(json.dumps(responseDataTemp))
+                if data["username"] in groups[data["groupName"]]["memberCall"]:
+                    userOnline[data["username"]]["groupCall"] = None
+                    del groups[data["groupName"]]["memberCall"][data["username"]]
+                responseData = {"type" : "leaveCall", "status" : True}
+                await websocket.send(json.dumps(responseData))
+
 
     except websockets.exceptions.ConnectionClosed:
         print(f"{username} disconnected.")    
     
     finally:
         if username in userOnline:
+            if userOnline[username]["groupCall"] is not None:
+                del groups[userOnline[username]["groupCall"]]["memberCall"][username]
             del userOnline[username]
 
 # start the websocket server
@@ -228,7 +269,8 @@ async def start_server():
     try:
         loadUserData()
         loadGroup()
-        async with websockets.serve(handleClient, "103.20.97.88", 5555):
+        threading.Thread(target=startVoiceServer, daemon=True).start()
+        async with websockets.serve(handleClient, SERVER_IP, PORT_TCP):
             print('Websockets Server Started')
             await asyncio.Future()
     finally:

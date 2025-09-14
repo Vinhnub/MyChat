@@ -35,10 +35,15 @@ class VoiceClient(DatagramProtocol):
 
     def record_and_send(self):
         while True:
+<<<<<<< HEAD
             if self.muted:
                 data = b"\x00" * CHUNK * 2
             else:
                 data = self.stream_in.read(CHUNK, exception_on_overflow=False)
+=======
+            print(1)
+            data = self.stream_in.read(CHUNK, exception_on_overflow=False)
+>>>>>>> 69f48e7fef7745002fed4a083879a5f7b7f9925d
             packet = {"audio": base64.b64encode(data).decode("utf-8")}
             jsonPacket = json.dumps(packet).encode("utf-8")
             self.transport.write(base64.b64encode(jsonPacket), (SERVER_IP, SERVER_PORT))
