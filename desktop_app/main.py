@@ -143,7 +143,7 @@ class Main():
             self.isRunningCall = True
             self.voice = VoiceClient(self, groupName, username, data)
             def _listen():
-                self.listeningPort = reactor.listenUDP(0, self.voice)
+                self.listeningPort = reactor.listenUDP(0, self.voice, interface="0.0.0.0")
             reactor.callFromThread(_listen)  # chạy trong reactor thread
         except Exception as e:
             self.check = False
