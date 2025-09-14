@@ -10,11 +10,14 @@ class VoiceServer(DatagramProtocol):
     def datagramReceived(self, data, addr):
         json_packet = base64.b64decode(data)
         packet = json.loads(json_packet.decode("utf-8"))
-        if packet["username"] not in self.clients[packet["groupName"]]["memberCall"] and self.userOnline[packet["username"]]["groupCall"] is not None:
+        if packet["username"] not in self.clients[packet["groupName"]]["memberCall"]:
             if self.userOnline[packet["username"]]["groupCall"] == packet["groupName"]:
                 self.clients[packet["groupName"]]["memberCall"][packet["username"]] = addr
-                # print("[Server] New client:", addr)
-                # print(self.clients[packet["groupName"]]["memberCall"])
+                
+        elif self.clients[packet["groupName"]]["memberCall"][packet["username"]] != addr:
+            if self.userOnline[packet["username"]]["groupCall"] == packet["groupName"]:
+                self.clients[packet["groupName"]]["memberCall"][packet["username"]] = addr
+        
 
         for client in self.clients[packet["groupName"]]["memberCall"]:
             if client != packet["username"]:
