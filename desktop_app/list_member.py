@@ -39,3 +39,4 @@ class ListMemberWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self.listWidget)
     
+    

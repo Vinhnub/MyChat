@@ -362,3 +362,6 @@ class JoinGroupWindow(QWidget):
         ret = QMessageBox.critical(self,"Error", "Something is wrong!", QMessageBox.Ok)
         if ret == QMessageBox.Ok:
             pass
+
+class CallWindow(QWidget):
+    pass
