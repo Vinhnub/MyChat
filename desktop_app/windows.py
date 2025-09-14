@@ -430,6 +430,9 @@ class CallWindow(QWidget):
     def addMemberIntoCall(self, data):
         self.listMember.addMemberIntoCall(data)
 
+    def removeMemberFromCall(self, username):
+        self.listMember.removeMemberFromCall(username)
+
     def closeEvent(self, event):
         self.leave()
          

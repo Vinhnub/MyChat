@@ -58,6 +58,9 @@ class Main():
 
         elif data["type"] == "newMemCall":
             self.handleNewMemCallResult(data)
+        
+        elif data["type"] == "memLeaveCall":
+            self.handleMemLeaveCallResult(data)
             
     def handleSignUpResult(self, success):
         if self.secondWindow is not None:
@@ -128,13 +131,20 @@ class Main():
             username = next(iter(data["info"]))
             self.voice.memberVolume[username] = 1
             self.secondWindow.addMemberIntoCall(data["info"])
+
+    def handleMemLeaveCallResult(self, data):
+        if self.secondWindow is not None and self.voice is not None:
+            username = data["info"]
+            if username in self.voice.memberVolume:
+                del self.voice.memberVolume[username]
+            self.secondWindow.removeMemberFromCall(username)
      
     def startCall(self, groupName, username, data):
         try:
             self.isRunningCall = True
             self.voice = VoiceClient(self, groupName, username, data)
             def _listen():
-                self.listeningPort = reactor.listenUDP(0, self.voice, interface=SERVER_IP)
+                self.listeningPort = reactor.listenUDP(0, self.voice)
             reactor.callFromThread(_listen)  # chạy trong reactor thread
         except Exception as e:
             self.check = False
@@ -153,7 +163,7 @@ class Main():
 
     def changeVolume(self, username, value):
         if self.voice is not None:
-            self.voice.memberVolume[username] = value
+            self.voice.memberVolume[username] = value/100
 
     def call(self, username, groupName):
         if username and groupName and self.voice is None:
