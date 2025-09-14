@@ -18,4 +18,5 @@ class VoiceServer(DatagramProtocol):
 
         for client in self.clients[packet["groupName"]]["memberCall"]:
             if client != packet["username"]:
+                print(packet["username"], self.clients[packet["groupName"]]["memberCall"], client)
                 self.transport.write(data, self.clients[packet["groupName"]]["memberCall"][client])

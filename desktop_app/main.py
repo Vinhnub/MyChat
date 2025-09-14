@@ -126,22 +126,24 @@ class Main():
             self.check = None
 
     def handleNewMemCallResult(self, data):
-        username = next(iter(data["info"]))
-        self.voice.memberVolume[username] = 1
-        self.secondWindow.addMemberIntoCall(data["info"])
+        if self.secondWindow is not None and self.voice is not None:
+            username = next(iter(data["info"]))
+            self.voice.memberVolume[username] = 1
+            self.secondWindow.addMemberIntoCall(data["info"])
 
     def handleMemLeaveCallResult(self, data):
-        username = data["info"]
-        if username in self.voice.memberVolume:
-            del self.voice.memberVolume[username]
-        self.secondWindow.removeMemberFromCall(username)
-    
+        if self.secondWindow is not None and self.voice is not None:
+            username = data["info"]
+            if username in self.voice.memberVolume:
+                del self.voice.memberVolume[username]
+            self.secondWindow.removeMemberFromCall(username)
+     
     def startCall(self, groupName, username, data):
         try:
             self.isRunningCall = True
             self.voice = VoiceClient(self, groupName, username, data)
             def _listen():
-                self.listeningPort = reactor.listenUDP(0, self.voice)
+                self.listeningPort = reactor.listenUDP(0, self.voice, interface="0.0.0.0")
             reactor.callFromThread(_listen)  # chạy trong reactor thread
         except Exception as e:
             self.check = False

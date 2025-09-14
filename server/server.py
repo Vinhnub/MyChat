@@ -261,7 +261,8 @@ async def handleClient(websocket):
     finally:
         if username in userOnline:
             if userOnline[username]["groupCall"] is not None:
-                del groups[userOnline[username]["groupCall"]]["memberCall"][username]
+                if username in groups[userOnline[username]["groupCall"]]["memberCall"]:
+                    del groups[userOnline[username]["groupCall"]]["memberCall"][username]
             del userOnline[username]
 
 # start the websocket server
