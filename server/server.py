@@ -244,11 +244,11 @@ async def handleClient(websocket):
                 await websocket.send(json.dumps(responseData))
 
             if data["type"] == "leaveCall":
-                for mem in groups[data["groupName"]]["memberCall"]:
-                    if mem in userOnline:
-                        responseDataTemp = {"type" : "memLeaveCall", "info" : data["username"]}
-                        await userOnline[mem]["ws"].send(json.dumps(responseDataTemp))
                 if data["username"] in groups[data["groupName"]]["memberCall"]:
+                    for mem in groups[data["groupName"]]["memberCall"]:
+                        if mem in userOnline:
+                            responseDataTemp = {"type" : "memLeaveCall", "info" : data["username"]}
+                            await userOnline[mem]["ws"].send(json.dumps(responseDataTemp))
                     userOnline[data["username"]]["groupCall"] = None
                     del groups[data["groupName"]]["memberCall"][data["username"]]
                 responseData = {"type" : "leaveCall", "status" : True}

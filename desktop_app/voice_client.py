@@ -15,7 +15,6 @@ class VoiceClient(DatagramProtocol):
         self.groupName = groupName
         self.username = username
         self.memberVolume = {item[0] : 1 for item in data}
-        print(self.memberVolume)
         self.micMuted = False
         self.speakerMuted = False
         self.audio = pyaudio.PyAudio()
