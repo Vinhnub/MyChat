@@ -77,7 +77,6 @@ class Main():
             dataFilter = {}
             for groupName in data["data"]["groups"].keys():
                 dataFilter[groupName] = data["data"]["groups"][groupName]["listMsg"]
-            print(dataFilter)
             self.user = User(data["data"]["username"], data["data"]["userFullName"], dataFilter)
             self.mainWindow = ChatWindow(self.app, self, data, dataFilter)
             self.mainWindow.show()

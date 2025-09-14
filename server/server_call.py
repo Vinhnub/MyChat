@@ -13,8 +13,8 @@ class VoiceServer(DatagramProtocol):
         if packet["username"] not in self.clients[packet["groupName"]]["memberCall"] and self.userOnline[packet["username"]]["groupCall"] is not None:
             if self.userOnline[packet["username"]]["groupCall"] == packet["groupName"]:
                 self.clients[packet["groupName"]]["memberCall"][packet["username"]] = addr
-                print("[Server] New client:", addr)
-                print(self.clients[packet["groupName"]]["memberCall"])
+                # print("[Server] New client:", addr)
+                # print(self.clients[packet["groupName"]]["memberCall"])
 
         for client in self.clients[packet["groupName"]]["memberCall"]:
             if client != packet["username"]:

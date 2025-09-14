@@ -259,7 +259,7 @@ class ChatWindow(QWidget):
     def closeEvent(self, event):
         if self.main.secondWindow is not None and self.main.isRunningCall:
             self.main.leaveCall(self.main.user.username, self.main.secondWindow.groupName)
-        self.app.quit()
+            self.main.secondWindow.close()
         event.accept()
 
 class CreateGroupWindow(QWidget):
