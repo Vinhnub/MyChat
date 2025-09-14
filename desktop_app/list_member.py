@@ -23,10 +23,8 @@ class ListMemberWidget(QWidget):
         super().__init__()
         self.setFixedWidth(250)
         self._window = window
-        self.setFixedWidth(250)
 
         self.listWidget = QListWidget()
-        self.dictGroups = {}
         if data:
             for (username, fullName) in data:
                 item = QListWidgetItem()
@@ -35,7 +33,5 @@ class ListMemberWidget(QWidget):
                 self.listWidget.addItem(item)
                 self.listWidget.setItemWidget(item, widget)
 
-
         layout = QVBoxLayout(self)
         layout.addWidget(self.listWidget)
-    

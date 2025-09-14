@@ -12,7 +12,7 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
 
-SERVER_IP = "26.47.5.36"
+SERVER_IP = "26.253.176.29"
 SERVER_PORT = 5000
 
 class VoiceClient(DatagramProtocol):
@@ -35,6 +35,7 @@ class VoiceClient(DatagramProtocol):
 
     def record_and_send(self):
         while True:
+            print(1)
             data = self.stream_in.read(CHUNK, exception_on_overflow=False)
             packet = {"audio": base64.b64encode(data).decode("utf-8")}
             json_packet = json.dumps(packet).encode("utf-8")
@@ -49,9 +50,5 @@ class VoiceClient(DatagramProtocol):
         self.stream_out.write(audioNp.tobytes())
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-    reactor.listenUDP(5555, VoiceClient())  # port 0 = random client port
-=======
     reactor.listenUDP(6666, VoiceClient())  # port 0 = random client port
->>>>>>> aa46a71d041b84f1b81f1d1cbce22949152a946b
     reactor.run()

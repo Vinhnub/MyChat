@@ -4,6 +4,7 @@ from twisted.internet.protocol import DatagramProtocol
 class VoiceServer(DatagramProtocol):
     def __init__(self):
         self.clients = set()
+        print(1)
 
     def datagramReceived(self, data, addr):
         if addr not in self.clients:
@@ -15,6 +16,7 @@ class VoiceServer(DatagramProtocol):
                 self.transport.write(data, client)
 
 if __name__ == "__main__":
-    reactor.listenUDP(5000, VoiceServer(), interface="26.253.176.29")
+    vc = VoiceServer()
+    reactor.listenUDP(5000, vc, interface="26.253.176.29")
     print("[Server] UDP Voice Server running on port 5000")
     reactor.run()

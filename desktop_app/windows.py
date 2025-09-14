@@ -9,6 +9,7 @@ from list_group import *
 from current_group_widget import *
 from user_profile import *
 from list_member import *
+from list_member_call import *
 
 class StartWindow(QWidget):
     def __init__(self, app, main):
@@ -49,6 +50,10 @@ class StartWindow(QWidget):
 
     def exit(self):
         self.app.quit()
+
+    def closeEvent(self, event):
+        self.app.quit()
+        event.accept()
 
 class SignInWindow(QWidget):
     def __init__(self, app, main):
@@ -189,6 +194,7 @@ class ChatWindow(QWidget):
         self.logoutBtn.clicked.connect(self.logout)
         self.createGroupBtn.clicked.connect(self.createGroup)
         self.joinGroupBtn.clicked.connect(self.joinGroup)
+        self.callBtn.clicked.connect(self.call)
 
         self.chatLayout = QHBoxLayout()
         self.chatLayout.addWidget(self.listGroup)
@@ -208,6 +214,9 @@ class ChatWindow(QWidget):
         layout.addLayout(buttonLayout)
         
         self.setLayout(layout)
+
+    def call(self):
+        self.main.call(self.data["data"]["username"], self.chatWidget.model.currentGroup)
 
     def sendMessage(self, msg):
         self.main.sendMessage(msg)
@@ -246,6 +255,12 @@ class ChatWindow(QWidget):
         self.listMember.deleteLater()
         self.listMember = ListMemberWidget(self, self.data["data"]["groups"][groupName]["members"])
         self.chatLayout.insertWidget(index, self.listMember)
+
+    def closeEvent(self, event):
+        if self.main.secondWindow is not None and self.main.isRunningCall:
+            self.main.leaveCall(self.main.user.username, self.main.secondWindow.groupName)
+        self.app.quit()
+        event.accept()
 
 class CreateGroupWindow(QWidget):
     def __init__(self, app, main, myName):
@@ -362,3 +377,59 @@ class JoinGroupWindow(QWidget):
         ret = QMessageBox.critical(self,"Error", "Something is wrong!", QMessageBox.Ok)
         if ret == QMessageBox.Ok:
             pass
+
+class CallWindow(QWidget):
+    def __init__(self, app, main, data, groupName):
+        super().__init__()
+        self.setWindowTitle(f"Call {groupName}")
+        self.app = app
+        self.main = main
+        self.groupName = groupName
+
+        self.listMember = ListMemberCallWidget(self, data)
+        self.micMutedBtn = QPushButton("Mute mic")
+        self.speakerMutedBtn = QPushButton("Mute speaker")
+        self.leaveBtn = QPushButton("Leave")
+
+        self.micMutedBtn.clicked.connect(self.mic)
+        self.speakerMutedBtn.clicked.connect(self.speaker)
+        self.leaveBtn.clicked.connect(self.leave)
+
+        layout = QVBoxLayout()
+        SMLayout = QHBoxLayout()
+        SMLayout.addWidget(self.micMutedBtn)
+        SMLayout.addWidget(self.speakerMutedBtn)
+        layout.addWidget(self.listMember)
+        layout.addLayout(SMLayout)
+        layout.addWidget(self.leaveBtn)
+        
+        self.setLayout(layout)
+
+    def mic(self):
+        if self.micMutedBtn.text() == "Mute mic":   
+            self.main.muteMic()
+            self.micMutedBtn.setText("Unmute mic")
+        else:
+            self.main.unmuteMic()
+            self.micMutedBtn.setText("Mute mic")
+
+    def speaker(self):
+        if self.speakerMutedBtn.text() == "Mute speaker":    
+            self.main.muteSpeaker()
+            self.speakerMutedBtn.setText("Unmute speaker")
+        else:
+            self.main.unmuteSpeaker()
+            self.speakerMutedBtn.setText("Mute speaker")
+
+    def changeVolume(self, username, value):
+        self.main.changeVolume(username, value)
+
+    def leave(self):
+        self.main.leaveCall(self.main.user.username, self.groupName)
+
+    def addMemberIntoCall(self, data):
+        self.listMember.addMemberIntoCall(data)
+
+    def closeEvent(self, event):
+        self.leave()
+         

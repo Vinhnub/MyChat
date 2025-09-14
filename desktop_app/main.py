@@ -6,6 +6,8 @@ import threading
 from PySide6.QtCore import QObject, Signal
 from user import *
 from constants import *
+from twisted.internet import reactor
+from voice_client import *
 
 class Signals(QObject):
     callGui = Signal(object)
@@ -14,19 +16,21 @@ class Main():
     def __init__(self, app):
         self.app = app
         self.user = None
+        self.voice = None
         self.loop = None
         self.mainWindow = StartWindow(self.app, self)
         self.secondWindow = None
         self.dataSendQueue = asyncio.Queue()
+        self.check = None
+        self.listeningPort = None
+        self.isRunningCall = False
 
         self.signals = Signals()
-        self.signals.callGui.connect(self.handleCallGui)
+        self.signals.callGui.connect(self.handleData)
 
         threading.Thread(target=lambda: asyncio.run(self.main()), daemon=True).start()
+        threading.Thread(target=lambda: reactor.run(installSignalHandlers=False), daemon=True).start()
 
-    def handleCallGui(self, func):
-        func()
-        
     def handleData(self, data):
         if data["type"] == "signUp":
             self.handleSignUpResult(data["status"])
@@ -45,6 +49,15 @@ class Main():
 
         elif data["type"] == "joinGroup":
             self.handleJoinGroupResult(data)
+
+        elif data["type"] == "call":
+            self.handleCallResult(data)
+
+        elif data["type"] == "leaveCall":
+            self.handleLeaveCallResult(data)
+
+        elif data["type"] == "newMemCall":
+            self.handleNewMemCallResult(data)
             
     def handleSignUpResult(self, success):
         if self.secondWindow is not None:
@@ -90,6 +103,81 @@ class Main():
         else:
             self.secondWindow.showError() 
 
+    #============================================= CALL FUNCTION ============================================= 
+
+    def handleCallResult(self, data):
+        if data["status"]:
+            if self.voice is None:
+                self.check = True
+                threading.Thread(target=self.startCall, args=(data["groupName"], data["username"], data["data"]), daemon=True).start()
+                if self.check:
+                    self.secondWindow = CallWindow(self.app, self, data["data"], data["groupName"])
+                    self.secondWindow.show()     
+
+    def handleLeaveCallResult(self, data):
+        if data["status"]:
+            self.stopCall()
+            if self.secondWindow is not None:
+                self.secondWindow.close()
+                self.secondWindow = None
+            self.voice = None
+            self.check = None
+
+    def handleNewMemCallResult(self, data):
+        if self.secondWindow is not None and self.voice is not None:
+            username = next(iter(data["info"]))
+            self.voice.memberVolume[username] = 1
+            self.secondWindow.addMemberIntoCall(data["info"])
+     
+    def startCall(self, groupName, username, data):
+        try:
+            self.isRunningCall = True
+            self.voice = VoiceClient(self, groupName, username, data)
+            def _listen():
+                self.listeningPort = reactor.listenUDP(0, self.voice, interface=SERVER_IP)
+            reactor.callFromThread(_listen)  # chạy trong reactor thread
+        except Exception as e:
+            self.check = False
+
+    def stopCall(self):
+        self.isRunningCall = False
+        if self.listeningPort:
+            def _stop():
+                try:
+                    self.listeningPort.stopListening()
+                except Exception as e:
+                    pass
+            reactor.callFromThread(_stop)
+            self.listeningPort = None
+            self.voice = None
+
+    def changeVolume(self, username, value):
+        if self.voice is not None:
+            self.voice.memberVolume[username] = value
+
+    def call(self, username, groupName):
+        if username and groupName and self.voice is None:
+            data = {"type" : "call", "username" : username, "groupName" : groupName}
+            self.addDataToQueue(data)
+
+    def muteMic(self):
+        self.voice.muteMic()
+
+    def unmuteMic(self):
+        self.voice.unmuteMic()
+
+    def muteSpeaker(self):
+        self.voice.muteSpeaker()
+
+    def unmuteSpeaker(self):
+        self.voice.unmuteSpeaker()     
+          
+    def leaveCall(self, username, groupName):
+        data = {"type" : "leaveCall", "username" : username, "groupName" : groupName}
+        self.addDataToQueue(data)
+
+    #==========================================================================================     
+
     def signIn(self, username, password):
         data = {"type" : "signIn", "username" : username, "password" : password}
         self.addDataToQueue(data)
@@ -134,7 +222,7 @@ class Main():
             async for msg in websocket:
                 data = json.loads(msg)
                 print(data)
-                self.signals.callGui.emit(lambda: self.handleData(data))
+                self.signals.callGui.emit(data)
 
         except websockets.ConnectionClosed:
             print("Lost connection.")
