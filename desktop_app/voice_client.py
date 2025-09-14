@@ -40,13 +40,14 @@ class VoiceClient(DatagramProtocol):
                 self.transport.write(base64.b64encode(json_packet), (SERVER_IP, PORT_UDP))
 
     def datagramReceived(self, datagram, addr):
-        if not self.speakerMuted:
-            json_packet = base64.b64decode(datagram)
-            packet = json.loads(json_packet.decode("utf-8"))
-            data = base64.b64decode(packet["audio"])
-            if packet["username"] in self.memberVolume:
-                audioNp = np.frombuffer(data, dtype=np.int16)
-                audioNp = (audioNp * self.memberVolume[packet["username"]]).astype(np.int16)
+        json_packet = base64.b64decode(datagram)
+        packet = json.loads(json_packet.decode("utf-8"))
+        data = base64.b64decode(packet["audio"])
+        print(packet["username"])
+        if packet["username"] in self.memberVolume:
+            audioNp = np.frombuffer(data, dtype=np.int16)
+            audioNp = (audioNp * self.memberVolume[packet["username"]]).astype(np.int16)
+            if not self.speakerMuted:
                 self.stream_out.write(audioNp.tobytes())
 
     def changeVolume(self, username, value):
